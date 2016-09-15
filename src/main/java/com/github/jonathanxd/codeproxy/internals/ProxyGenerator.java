@@ -289,7 +289,7 @@ public class ProxyGenerator {
 
         List<CodeParameter> parameterList = codeMethod.getParameters();
 
-        CodeArgument[] codeArgumentArray = Util.fromParametersToArgs(parameterList.stream()).toArray(CodeArgument[]::new);
+        CodeArgument[] codeArgumentArray = Util.cast(Util.fromParametersToArgs(parameterList.stream()), PredefinedTypes.OBJECT).toArray(CodeArgument[]::new);
 
         ArrayConstructor argsArray = CodeAPI.arrayConstruct(Object.class, new CodePart[]{Literals.INT(parameterList.size())}, codeArgumentArray);
 

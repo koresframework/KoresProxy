@@ -86,6 +86,22 @@ public class Util {
         );
     }
 
+    static Stream<CodeArgument> cast(Stream<CodeArgument> stream, CodeType target) {
+        return stream.map(codeArgument -> {
+            CodePart value = codeArgument.getValue().orElseThrow(NullPointerException::new);
+            CodeType type = codeArgument.getRequiredType();
+
+            if(type.isArray())
+                return codeArgument;
+
+            if(type.compareTo(target) != 0) {
+                return new CodeArgument(Helper.cast(type, target, value), target);
+            }
+
+            return codeArgument;
+        });
+    }
+
     static CodePart constructProxyData(ProxyData proxyData, CodeType IH_TYPE, String IH_NAME) {
 
         CodeArgument[] arguments = Arrays.stream(proxyData.getInterfaces()).map(

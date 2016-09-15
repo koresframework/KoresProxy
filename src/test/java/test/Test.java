@@ -98,6 +98,14 @@ public class Test {
             return "VVS";
         }
 
+        public int r(int a) {
+            return 9;
+        }
+
+        public int v(int[] b) {
+            return 9;
+        }
+
         public boolean equals(Object o) {
             return false;
         }
