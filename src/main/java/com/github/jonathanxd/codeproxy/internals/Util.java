@@ -87,7 +87,9 @@ public class Util {
 
     static CodePart constructProxyData(ProxyData proxyData, CodeType IH_TYPE, String IH_NAME) {
 
-        CodeArgument[] arguments = Arrays.stream(proxyData.getInterfaces()).map(Literals::CLASS).toArray(CodeArgument[]::new);
+        CodeArgument[] arguments = Arrays.stream(proxyData.getInterfaces()).map(
+                aClass -> new CodeArgument(Literals.CLASS(aClass), Class.class)
+        ).toArray(CodeArgument[]::new);
 
         ArrayConstructor arrayConstructor = CodeAPI.arrayConstruct(Class.class, new CodePart[]{
                 Literals.INT(proxyData.getInterfaces().length)
