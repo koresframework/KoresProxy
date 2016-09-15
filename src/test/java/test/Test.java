@@ -60,12 +60,17 @@ public class Test {
                 return 7;
             }
 
+            if(method.getName().equals("packagePrivate")) {
+                return "Oops";
+            }
+
             return method.invoke(myClass, args);
         }, new Class[]{String.class}, new Object[]{"XS"});
 
         System.out.println(apb.apb());
         System.out.println(apb.getStr());
         System.out.println(apb.hashCode());
+        System.out.println(apb.packagePrivate());
 
         Assert.assertEquals("apb.apb()", "OI", apb.apb());
         Assert.assertEquals("apb.getStr()", "XS", apb.getStr());
@@ -87,6 +92,10 @@ public class Test {
 
         public String getStr() {
             return str;
+        }
+
+        String packagePrivate() {
+            return "VVS";
         }
     }
 

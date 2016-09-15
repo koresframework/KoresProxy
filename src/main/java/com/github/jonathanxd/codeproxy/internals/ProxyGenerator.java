@@ -167,7 +167,15 @@ public class ProxyGenerator {
 
         CodeSource source = new CodeSource();
 
-        CodeClass codeClass = new CodeClass("com.github.jonathanxd.codeproxy.generated." + ProxyGenerator.getProxyName(),
+        String package_;
+
+        if (superType.compareTo(PredefinedTypes.OBJECT) == 0) {
+            package_ = "com.github.jonathanxd.codeproxy.generated";
+        } else {
+            package_ = superType.getPackageName();
+        }
+
+        CodeClass codeClass = new CodeClass(package_ + "." + ProxyGenerator.getProxyName(),
                 Collections.singletonList(CodeModifier.PUBLIC),
                 superType,
                 interfaces,
@@ -205,7 +213,9 @@ public class ProxyGenerator {
 
         for (Constructor<?> constructor : superClass.getConstructors()) {
 
-            if (Modifier.isPublic(constructor.getModifiers()) || Modifier.isProtected(constructor.getModifiers())) {
+            if (Modifier.isPublic(constructor.getModifiers())
+                    || Modifier.isProtected(constructor.getModifiers())
+                    || isPackagePrivate(constructor.getModifiers())) {
 
                 List<CodeParameter> codeParameters = new ArrayList<>(Util.fromParameters(constructor.getParameters()));
 
@@ -234,8 +244,8 @@ public class ProxyGenerator {
             }
         }
 
-        if(count == 0)
-            throw new IllegalArgumentException("Cannot generate proxy to super class: '"+superClass+"'! No accessible constructors.");
+        if (count == 0)
+            throw new IllegalArgumentException("Cannot generate proxy to super class: '" + superClass + "'! No accessible constructors.");
 
     }
 
@@ -246,15 +256,18 @@ public class ProxyGenerator {
         Set<Method> methodSet = new HashSet<>();
 
         Collections.addAll(methodSet, superClass.getMethods());
+        Collections.addAll(methodSet, superClass.getDeclaredMethods());
 
         for (Class<?> anInterface : interfaces) {
             Collections.addAll(methodSet, anInterface.getMethods());
+            Collections.addAll(methodSet, anInterface.getDeclaredMethods());
         }
 
         for (Method method : methodSet) {
 
             if ((!Modifier.isPublic(method.getModifiers())
-                    && !Modifier.isProtected(method.getModifiers()))
+                    && !Modifier.isProtected(method.getModifiers())
+                    && !isPackagePrivate(method.getModifiers()))
                     || Modifier.isFinal(method.getModifiers())) {
                 continue;
             }
@@ -341,6 +354,10 @@ public class ProxyGenerator {
 
         ++PROXY_COUNT;
 
-        return "Proxy$" + proxy;
+        return "$Proxy$CodeProxy_$" + proxy;
+    }
+
+    public static boolean isPackagePrivate(int modifiers) {
+        return !Modifier.isPublic(modifiers) && !Modifier.isProtected(modifiers) && !Modifier.isPrivate(modifiers);
     }
 }

@@ -74,7 +74,7 @@ Assert.assertEquals("getName", "Origin 2", cwc.getName());
 
 #### Limitations
 
-- CodeProxy only handles public and protected methods.
+- CodeProxy only handles public, protected and package-private methods.
 - CodeProxy only handles non-final methods.
 - CodeProxy only generate proxies to classes that have accessible constructors.
 

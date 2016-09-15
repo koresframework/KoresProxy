@@ -55,7 +55,7 @@ public class Util {
 
     static CodePart methodToReflectInvocation(Method m) {
 
-        return CodeAPI.invokeVirtual(Class.class, Literals.CLASS(m.getDeclaringClass()), "getMethod", new TypeSpec(Helper.getJavaType(Method.class), String.class, Class[].class),
+        return CodeAPI.invokeVirtual(Class.class, Literals.CLASS(m.getDeclaringClass()), "getDeclaredMethod", new TypeSpec(Helper.getJavaType(Method.class), String.class, Class[].class),
                 CodeAPI.argument(Literals.STRING(m.getName())), CodeAPI.argument(Util.parametersToArrayCtr(m.getParameterTypes())));
     }
 
