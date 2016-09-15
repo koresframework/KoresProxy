@@ -32,33 +32,129 @@ import com.github.jonathanxd.codeproxy.internals.ProxyGenerator;
 
 public class CodeProxy {
 
+    /**
+     * Generate new proxy instance that extends {@code superClass}, implements {@code interfaces},
+     * invoke super constructor, delegates invocations to {@code invocationHandler} and inject proxy
+     * instance into {@code classLoader}.
+     *
+     * @param <T>               Type of proxy.
+     * @param classLoader       Class loader to inject proxy instance.
+     * @param superClass        Super class of Proxy.
+     * @param interfaces        Interfaces to implements.
+     * @param invocationHandler Handler to delegate invocations.
+     * @param argTypes          Types of arguments of constructor of {@code superClass}.
+     * @param args              Arguments to pass to constructor of {@code superClass}
+     * @return Proxy instance.
+     */
     @SuppressWarnings("unchecked")
-    public static <T> T newProxyInstance(ClassLoader classLoader, Class<?>[] interfaces, Class<T> superClass, InvocationHandler invocationHandler, Class<?>[] argTypes, Object[] args) {
+    public static <T> T newProxyInstance(ClassLoader classLoader,
+                                         Class<T> superClass,
+                                         Class<?>[] interfaces,
+                                         InvocationHandler invocationHandler,
+                                         Class<?>[] argTypes,
+                                         Object[] args) {
         return (T) ProxyGenerator.create(new ProxyData(classLoader, interfaces, superClass, invocationHandler), argTypes, args);
     }
 
+    /**
+     * Generate new proxy instance that extends {@code superClass}, implements {@code interfaces},
+     * delegates invocations to {@code invocationHandler} and inject proxy instance into {@code
+     * classLoader}.
+     *
+     * @param classLoader       Class loader to inject proxy instance.
+     * @param superClass        Super class of Proxy.
+     * @param interfaces        Interfaces to implements.
+     * @param invocationHandler Handler to delegate invocations.
+     * @param <T>               Type of proxy.
+     * @return Proxy instance.
+     */
     @SuppressWarnings("unchecked")
-    public static <T> T newProxyInstance(ClassLoader classLoader, Class<?>[] interfaces, Class<T> superClass, InvocationHandler invocationHandler) {
-        return CodeProxy.newProxyInstance(classLoader, interfaces, superClass, invocationHandler, new Class[0], new Object[0]);
+    public static <T> T newProxyInstance(ClassLoader classLoader,
+                                         Class<T> superClass,
+                                         Class<?>[] interfaces,
+                                         InvocationHandler invocationHandler) {
+        return CodeProxy.newProxyInstance(classLoader, superClass, interfaces, invocationHandler, new Class[0], new Object[0]);
     }
 
-    public static Object newProxyInstance(ClassLoader classLoader, Class<?>[] interfaces, InvocationHandler invocationHandler) {
-        return CodeProxy.newProxyInstance(classLoader, interfaces, Object.class, invocationHandler);
+    /**
+     * Generate new proxy instance that implements {@code interfaces},
+     * delegates invocations to {@code invocationHandler} and inject proxy instance into {@code
+     * classLoader}.
+     *
+     * @param classLoader       Class loader to inject proxy instance.
+     * @param interfaces        Interfaces to implements.
+     * @param invocationHandler Handler to delegate invocations.
+     * @return Proxy instance.
+     */
+    public static Object newProxyInstance(ClassLoader classLoader,
+                                          Class<?>[] interfaces,
+                                          InvocationHandler invocationHandler) {
+        return CodeProxy.newProxyInstance(classLoader, Object.class, interfaces, invocationHandler);
     }
 
-    public static <T> T newProxyInstance(ClassLoader classLoader, Class<T> superClass, InvocationHandler invocationHandler, Class<?>[] argTypes, Object[] args) {
-        return CodeProxy.newProxyInstance(classLoader, new Class[0], superClass, invocationHandler, argTypes, args);
+    /**
+     * Generate new proxy instance that extends {@code superClass}, invoke super constructor,
+     * delegates invocations to {@code invocationHandler}, and inject proxy instance into {@code
+     * classLoader}.
+     *
+     * @param classLoader       Class loader to inject proxy instance.
+     * @param superClass        Super class of Proxy.
+     * @param invocationHandler Handler to delegate invocations.
+     * @param argTypes          Types of arguments of constructor of {@code superClass}.
+     * @param args              Arguments to pass to constructor of {@code superClass}
+     * @param <T>               Type of proxy.
+     * @return Proxy instance.
+     */
+    public static <T> T newProxyInstance(ClassLoader classLoader,
+                                         Class<T> superClass,
+                                         InvocationHandler invocationHandler,
+                                         Class<?>[] argTypes,
+                                         Object[] args) {
+        return CodeProxy.newProxyInstance(classLoader, superClass, new Class[0], invocationHandler, argTypes, args);
     }
 
+    /**
+     * Generate new proxy instance that extends {@code superClass},
+     * delegates invocations to {@code invocationHandler} and inject proxy instance into {@code
+     * classLoader}.
+     *
+     * @param classLoader       Class loader to inject proxy instance.
+     * @param superClass        Super class of Proxy.
+     * @param invocationHandler Handler to delegate invocations.
+     * @param <T>               Type of proxy.
+     * @return Proxy instance.
+     */
     public static <T> T newProxyInstance(ClassLoader classLoader, Class<T> superClass, InvocationHandler invocationHandler) {
-        return CodeProxy.newProxyInstance(classLoader, new Class[0], superClass, invocationHandler);
+        return CodeProxy.newProxyInstance(classLoader, superClass, new Class[0], invocationHandler);
     }
 
+    /**
+     * Returns true if {@code o} is a {@link CodeProxy} instance.
+     *
+     * @param o Object to check.
+     * @return True if {@code o} is a {@link CodeProxy} instance.
+     */
     public static boolean isProxy(Object o) {
         return ProxyGenerator.isProxy(o);
     }
 
+    /**
+     * Gets the {@link InvocationHandler} of a {@link CodeProxy}.
+     *
+     * @param o Object to get the handler.
+     * @return The {@link InvocationHandler} of {@link CodeProxy}.
+     */
     public static InvocationHandler getHandler(Object o) {
         return ProxyGenerator.getInvocationHandler(o);
+    }
+
+    /**
+     * Gets the {@link ProxyData} of a {@link CodeProxy}.
+     *
+     * @param o Object to get the handler.
+     * @return The {@link ProxyData} of {@link CodeProxy}.
+     */
+    public static ProxyData getProxyData(Object o) {
+        return ProxyGenerator.getProxyData(o);
     }
 }

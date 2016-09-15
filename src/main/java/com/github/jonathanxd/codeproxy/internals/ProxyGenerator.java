@@ -116,6 +116,29 @@ public class ProxyGenerator {
         }
     }
 
+    public static ProxyData getProxyData(Object o) {
+
+        Objects.requireNonNull(o, "Argument 'o' cannot be null!");
+
+        if (!ProxyGenerator.isProxy(o))
+            throw new IllegalArgumentException("Object '" + o + "' isn't a Proxy!");
+
+        Class<?> aClass = o.getClass();
+
+        try {
+            Field declaredField = aClass.getDeclaredField(PD_NAME);
+
+            if (!declaredField.getType().equals(ProxyData.class))
+                throw new IllegalStateException("Illegal field type: '" + declaredField.getType() + "'!");
+
+            declaredField.setAccessible(true);
+
+            return (ProxyData) declaredField.get(o);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     public static Object create(ProxyData proxyData, Class<?>[] argTypes, Object[] args) {
         try {
             Class<?> construct = ProxyGenerator.construct(proxyData);
@@ -178,31 +201,41 @@ public class ProxyGenerator {
         Class<?> superClass = proxyData.getSuperClass();
         CodeType superType = Helper.getJavaType(superClass);
 
+        int count = 0;
+
         for (Constructor<?> constructor : superClass.getConstructors()) {
 
-            List<CodeParameter> codeParameters = new ArrayList<>(Util.fromParameters(constructor.getParameters()));
+            if (Modifier.isPublic(constructor.getModifiers()) || Modifier.isProtected(constructor.getModifiers())) {
 
-            codeParameters.add(0, new CodeParameter(IH_NAME, IH_TYPE));
+                List<CodeParameter> codeParameters = new ArrayList<>(Util.fromParameters(constructor.getParameters()));
 
-            CodeSource constructorSource = new CodeSource();
+                codeParameters.add(0, new CodeParameter(IH_NAME, IH_TYPE));
 
-            CodeConstructor codeConstructor = new CodeConstructor(
-                    Collections.singletonList(CodeModifier.PUBLIC),
-                    codeParameters,
-                    constructorSource);
+                CodeSource constructorSource = new CodeSource();
 
-            if (codeParameters.size() > 1) {
-                CodeArgument[] arguments = Util.fromParametersToArgs(codeParameters.subList(1, codeParameters.size()).stream()).toArray(CodeArgument[]::new);
+                CodeConstructor codeConstructor = new CodeConstructor(
+                        Collections.singletonList(CodeModifier.PUBLIC),
+                        codeParameters,
+                        constructorSource);
 
-                constructorSource.add(Helper.invokeSuperInit(superType, arguments));
+                if (codeParameters.size() > 1) {
+                    CodeArgument[] arguments = Util.fromParametersToArgs(codeParameters.subList(1, codeParameters.size()).stream()).toArray(CodeArgument[]::new);
+
+                    constructorSource.add(Helper.invokeSuperInit(superType, arguments));
+                }
+
+                // this.invocationHandler = invocationHandler;
+                constructorSource.add(CodeAPI.setThisField(IH_TYPE, IH_NAME, CodeAPI.accessLocalVariable(IH_TYPE, IH_NAME)));
+                constructorSource.add(CodeAPI.setThisField(PD_TYPE, PD_NAME, Util.constructProxyData(proxyData, IH_TYPE, IH_NAME)));
+
+                source.add(codeConstructor);
+
+                ++count;
             }
-
-            // this.invocationHandler = invocationHandler;
-            constructorSource.add(CodeAPI.setThisField(IH_TYPE, IH_NAME, CodeAPI.accessLocalVariable(IH_TYPE, IH_NAME)));
-            constructorSource.add(CodeAPI.setThisField(PD_TYPE, PD_NAME, Util.constructProxyData(proxyData, IH_TYPE, IH_NAME)));
-
-            source.add(codeConstructor);
         }
+
+        if(count == 0)
+            throw new IllegalArgumentException("Cannot generate proxy to super class: '"+superClass+"'! No accessible constructors.");
 
     }
 
