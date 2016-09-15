@@ -97,6 +97,11 @@ public class Test {
         String packagePrivate() {
             return "VVS";
         }
+
+        public boolean equals(Object o) {
+            return false;
+        }
+
     }
 
 }

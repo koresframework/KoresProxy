@@ -46,6 +46,7 @@ import com.github.jonathanxd.codeproxy.ProxyData;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -121,5 +122,20 @@ public class Util {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    static boolean isEqual(Method o1, Method o2) {
+        return o1.getName().equals(o2.getName())
+                && o1.getReturnType().equals(o2.getReturnType())
+                && Arrays.equals(o1.getParameterTypes(), o2.getParameterTypes());
+    }
+
+    static boolean contains(Collection<Method> methods, Method o1) {
+        for (Method method : methods) {
+            if(method != o1 && Util.isEqual(method, o1))
+                return true;
+        }
+
+        return false;
     }
 }

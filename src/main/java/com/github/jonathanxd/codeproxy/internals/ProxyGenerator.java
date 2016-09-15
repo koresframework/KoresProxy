@@ -263,6 +263,8 @@ public class ProxyGenerator {
             Collections.addAll(methodSet, anInterface.getDeclaredMethods());
         }
 
+        methodSet.removeIf(method -> Util.contains(methodSet, method));
+
         for (Method method : methodSet) {
 
             if ((!Modifier.isPublic(method.getModifiers())
