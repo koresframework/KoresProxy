@@ -116,7 +116,7 @@ public class Util {
                 CodeAPI.argument(Util.getClassLoader_(), ClassLoader.class),
                 CodeAPI.argument(arrayConstructor, Class[].class),
                 CodeAPI.argument(Literals.CLASS(proxyData.getSuperClass()), Class.class),
-                CodeAPI.argument(CodeAPI.accessStaticThisField(IH_TYPE, IH_NAME), IH_TYPE));
+                CodeAPI.argument(CodeAPI.accessThisField(IH_TYPE, IH_NAME), IH_TYPE));
     }
 
     static MethodInvocation getClassLoader_() {

@@ -297,11 +297,11 @@ public class ProxyGenerator {
                 new CodeArgument(Helper.accessThis()),
                 new CodeArgument(Util.methodToReflectInvocation(m)),
                 new CodeArgument(argsArray),
-                new CodeArgument(CodeAPI.accessStaticThisField(PD_TYPE, PD_NAME))
+                new CodeArgument(CodeAPI.accessThisField(PD_TYPE, PD_NAME))
         };
 
         CodePart part = CodeAPI.invokeInterface(IH_TYPE,
-                CodeAPI.accessStaticThisField(IH_TYPE, IH_NAME),
+                CodeAPI.accessThisField(IH_TYPE, IH_NAME),
                 InvocationHandler.Info.METHOD_NAME,
                 InvocationHandler.Info.SPEC, arguments);
 
