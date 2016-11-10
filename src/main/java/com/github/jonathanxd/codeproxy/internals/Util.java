@@ -30,6 +30,7 @@ package com.github.jonathanxd.codeproxy.internals;
 import com.github.jonathanxd.codeapi.CodeAPI;
 import com.github.jonathanxd.codeapi.CodePart;
 import com.github.jonathanxd.codeapi.CodeSource;
+import com.github.jonathanxd.codeapi.MutableCodeSource;
 import com.github.jonathanxd.codeapi.common.CodeArgument;
 import com.github.jonathanxd.codeapi.common.CodeModifier;
 import com.github.jonathanxd.codeapi.common.CodeParameter;
@@ -73,7 +74,7 @@ public class Util {
                 Collections.singletonList(CodeModifier.PUBLIC),
                 Util.fromParameters(m.getParameters()),
                 Helper.getJavaType(m.getReturnType()),
-                new CodeSource());
+                new MutableCodeSource());
     }
 
     static List<CodeParameter> fromParameters(Parameter[] parameters) {

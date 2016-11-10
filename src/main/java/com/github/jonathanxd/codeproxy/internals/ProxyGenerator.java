@@ -30,11 +30,13 @@ package com.github.jonathanxd.codeproxy.internals;
 import com.github.jonathanxd.codeapi.CodeAPI;
 import com.github.jonathanxd.codeapi.CodePart;
 import com.github.jonathanxd.codeapi.CodeSource;
+import com.github.jonathanxd.codeapi.MutableCodeSource;
 import com.github.jonathanxd.codeapi.Result;
 import com.github.jonathanxd.codeapi.common.CodeArgument;
 import com.github.jonathanxd.codeapi.common.CodeModifier;
 import com.github.jonathanxd.codeapi.common.CodeParameter;
-import com.github.jonathanxd.codeapi.gen.common.PlainSourceGenerator;
+import com.github.jonathanxd.codeapi.gen.value.source.PlainSourceGenerator;
+import com.github.jonathanxd.codeapi.generic.GenericSignature;
 import com.github.jonathanxd.codeapi.helper.Helper;
 import com.github.jonathanxd.codeapi.helper.PredefinedTypes;
 import com.github.jonathanxd.codeapi.impl.CodeClass;
@@ -44,11 +46,11 @@ import com.github.jonathanxd.codeapi.impl.CodeMethod;
 import com.github.jonathanxd.codeapi.interfaces.ArrayConstructor;
 import com.github.jonathanxd.codeapi.literals.Literals;
 import com.github.jonathanxd.codeapi.types.CodeType;
-import com.github.jonathanxd.codeapi.visitgenerator.BytecodeGenerator;
+import com.github.jonathanxd.codeapi.gen.visit.bytecode.BytecodeGenerator;
 import com.github.jonathanxd.codeproxy.ProxyData;
 import com.github.jonathanxd.codeproxy.handler.InvocationHandler;
-import com.github.jonathanxd.iutils.arrays.ArrayUtils;
-import com.github.jonathanxd.iutils.arrays.PrimitiveArrayConverter;
+import com.github.jonathanxd.iutils.array.ArrayUtils;
+import com.github.jonathanxd.iutils.array.PrimitiveArrayConverter;
 import com.github.jonathanxd.iutils.map.WeakValueHashMap;
 import com.github.jonathanxd.iutils.optional.Require;
 
@@ -165,7 +167,7 @@ public class ProxyGenerator {
         CodeType superType = Helper.getJavaType(proxyData.getSuperClass());
         List<CodeType> interfaces = Arrays.asList(Helper.getJavaTypes(proxyData.getInterfaces()));
 
-        CodeSource source = new CodeSource();
+        MutableCodeSource source = new MutableCodeSource();
 
         String package_;
 
@@ -179,16 +181,16 @@ public class ProxyGenerator {
                 Collections.singletonList(CodeModifier.PUBLIC),
                 superType,
                 interfaces,
-                source);
+                GenericSignature.empty(),
+                source,
+                null);
 
         generateFields(source, proxyData);
         generateConstructor(source, proxyData);
         generateMethods(source, proxyData);
         BytecodeGenerator bytecodeGenerator = new BytecodeGenerator();
 
-        Result<Byte[]> gen = bytecodeGenerator.gen(Helper.sourceOf(codeClass));
-
-        byte[] bytes = PrimitiveArrayConverter.toPrimitive(gen.getResult());
+        byte[] bytes = bytecodeGenerator.gen(Helper.sourceOf(codeClass))[0].getBytecode();
 
         ProxyGenerator.saveProxy(codeClass, bytes);
 
@@ -199,12 +201,12 @@ public class ProxyGenerator {
         return aClass;
     }
 
-    private static void generateFields(CodeSource source, ProxyData proxyData) {
+    private static void generateFields(MutableCodeSource source, ProxyData proxyData) {
         source.add(new CodeField(IH_NAME, IH_TYPE, Arrays.asList(CodeModifier.PRIVATE, CodeModifier.FINAL)));
         source.add(new CodeField(PD_NAME, PD_TYPE, Arrays.asList(CodeModifier.PRIVATE, CodeModifier.FINAL)));
     }
 
-    private static void generateConstructor(CodeSource source, ProxyData proxyData) {
+    private static void generateConstructor(MutableCodeSource source, ProxyData proxyData) {
 
         Class<?> superClass = proxyData.getSuperClass();
         CodeType superType = Helper.getJavaType(superClass);
@@ -221,7 +223,7 @@ public class ProxyGenerator {
 
                 codeParameters.add(0, new CodeParameter(IH_NAME, IH_TYPE));
 
-                CodeSource constructorSource = new CodeSource();
+                MutableCodeSource constructorSource = new MutableCodeSource();
 
                 CodeConstructor codeConstructor = new CodeConstructor(
                         Collections.singletonList(CodeModifier.PUBLIC),
@@ -249,7 +251,7 @@ public class ProxyGenerator {
 
     }
 
-    private static void generateMethods(CodeSource source, ProxyData proxyData) {
+    private static void generateMethods(MutableCodeSource source, ProxyData proxyData) {
         Class<?> superClass = proxyData.getSuperClass();
         Class<?>[] interfaces = proxyData.getInterfaces();
 
@@ -276,7 +278,7 @@ public class ProxyGenerator {
 
             CodeMethod codeMethod = Util.fromMethod(method);
 
-            CodeSource methodSource = Require.require(codeMethod.getBody());
+            MutableCodeSource methodSource = (MutableCodeSource) Require.require(codeMethod.getBody());
 
             generateMethod(method, codeMethod, methodSource, proxyData);
 
@@ -285,7 +287,7 @@ public class ProxyGenerator {
     }
 
 
-    private static void generateMethod(Method m, CodeMethod codeMethod, CodeSource methodSource, ProxyData proxyData) {
+    private static void generateMethod(Method m, CodeMethod codeMethod, MutableCodeSource methodSource, ProxyData proxyData) {
 
         List<CodeParameter> parameterList = codeMethod.getParameters();
 
