@@ -3,7 +3,7 @@
  *
  *         The MIT License (MIT)
  *
- *      Copyright (c) 2016 TheRealBuggy/JonathanxD (https://github.com/JonathanxD/ & https://github.com/TheRealBuggy/) <jonathan.scripter@programmer.net>
+ *      Copyright (c) 2017 TheRealBuggy/JonathanxD (https://github.com/JonathanxD/ & https://github.com/TheRealBuggy/) <jonathan.scripter@programmer.net>
  *      Copyright (c) contributors
  *
  *
@@ -50,17 +50,17 @@ public class Test {
                 return "OI";
             }
 
-            if(method.getName().equals("getStr")) {
+            if (method.getName().equals("getStr")) {
                 Field str = MyClass.class.getDeclaredField("str");
                 str.setAccessible(true);
                 return str.get(proxy);
             }
 
-            if(method.getName().equals("hashCode")) {
+            if (method.getName().equals("hashCode")) {
                 return 7;
             }
 
-            if(method.getName().equals("packagePrivate")) {
+            if (method.getName().equals("packagePrivate")) {
                 return "Oops";
             }
 
@@ -76,6 +76,7 @@ public class Test {
         Assert.assertEquals("apb.getStr()", "XS", apb.getStr());
         Assert.assertEquals("hashCode", 7, apb.hashCode());
         Assert.assertTrue("isProxy", CodeProxy.isProxy(apb));
+
     }
 
     public static class MyClass {

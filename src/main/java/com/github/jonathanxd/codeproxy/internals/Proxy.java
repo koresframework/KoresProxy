@@ -25,41 +25,18 @@
  *      OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  *      THE SOFTWARE.
  */
-package com.github.jonathanxd.codeproxy.handler;
+package com.github.jonathanxd.codeproxy.internals;
 
-import com.github.jonathanxd.codeapi.CodeAPI;
-import com.github.jonathanxd.codeapi.Types;
-import com.github.jonathanxd.codeapi.common.TypeSpec;
-import com.github.jonathanxd.codeapi.type.CodeType;
-import com.github.jonathanxd.codeproxy.ProxyData;
+import java.lang.annotation.Documented;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-import java.lang.reflect.Method;
-
-import kotlin.collections.CollectionsKt;
-
-public interface InvocationHandler {
-
-    Object invoke(Object instance, Method method, Object[] args, ProxyData proxyData) throws Throwable;
-
-    enum Util {
-        ;
-
-        public static InvocationHandler fromJavaHandler(java.lang.reflect.InvocationHandler java) {
-            return (instance, method, args, proxyData) -> java.invoke(instance, method, args);
-        }
-    }
-
-    enum Info {
-        ;
-        public static final String METHOD_NAME = "invoke";
-        public static final TypeSpec SPEC = new TypeSpec(
-                Types.OBJECT,
-                CollectionsKt.<CodeType>listOf(
-                        Types.OBJECT,
-                        CodeAPI.getJavaType(Method.class),
-                        CodeAPI.getJavaType(Object[].class),
-                        CodeAPI.getJavaType(ProxyData.class)
-                ));
-    }
-
+/**
+ * Marks the class as CodeProxy generated class.
+ */
+@Documented
+@Retention(RetentionPolicy.RUNTIME)
+@Target({})
+@interface Proxy {
 }
