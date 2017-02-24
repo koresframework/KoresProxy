@@ -38,7 +38,7 @@ repositories {
 allprojects{
     dependencies {
         //compile 'com.github.JonathanxD:CodeAPI:3.0'
-        compile 'com.github.JonathanxD:CodeAPI-BytecodeWriter:3.0.2-a'
+        compile 'com.github.JonathanxD:CodeAPI-BytecodeWriter:3.1.0'
         compile 'com.github.JonathanxD:JwIUtils:3.5.2'
 
         testCompile group: 'junit', name:'junit', version: '4.12'
