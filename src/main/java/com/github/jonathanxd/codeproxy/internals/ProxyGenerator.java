@@ -179,12 +179,14 @@ public class ProxyGenerator {
 
         MutableCodeSource source = new MutableCodeSource();
 
+        boolean packagePrivate = false;
         String package_;
 
         if (superType.compareTo(Types.OBJECT) == 0 || superType.getPackageName().startsWith("java.")) {
             package_ = "com.github.jonathanxd.codeproxy.generated";
         } else {
             package_ = superType.getPackageName();
+            packagePrivate = true;
         }
 
         ClassDeclaration proxyClass = ClassDeclarationBuilder.builder()
@@ -197,8 +199,8 @@ public class ProxyGenerator {
                 .build();
 
         generateFields(source, proxyData);
-        generateConstructor(source, proxyData);
-        generateMethods(source, proxyData);
+        generateConstructor(packagePrivate, source, proxyData);
+        generateMethods(packagePrivate, source, proxyData);
 
         BytecodeGenerator bytecodeGenerator = new BytecodeGenerator();
 
@@ -225,7 +227,7 @@ public class ProxyGenerator {
         source.add(FieldFactory.field(EnumSet.of(CodeModifier.PRIVATE, CodeModifier.FINAL), PD_TYPE, PD_NAME));
     }
 
-    private static void generateConstructor(MutableCodeSource source, ProxyData proxyData) {
+    private static void generateConstructor(boolean packagePrivate, MutableCodeSource source, ProxyData proxyData) {
 
         Class<?> superClass = proxyData.getSuperClass();
         CodeType superType = CodeAPI.getJavaType(superClass);
@@ -236,7 +238,7 @@ public class ProxyGenerator {
 
             if (Modifier.isPublic(constructor.getModifiers())
                     || Modifier.isProtected(constructor.getModifiers())
-                    || isPackagePrivate(constructor.getModifiers())) {
+                    || (isPackagePrivate(constructor.getModifiers()) && packagePrivate)) {
 
                 List<CodeParameter> parameters = new ArrayList<>(Util.fromParameters(constructor.getParameters()));
 
@@ -277,7 +279,7 @@ public class ProxyGenerator {
 
     }
 
-    private static void generateMethods(MutableCodeSource source, ProxyData proxyData) {
+    private static void generateMethods(boolean packagePrivate, MutableCodeSource source, ProxyData proxyData) {
         Class<?> superClass = proxyData.getSuperClass();
         Class<?>[] interfaces = proxyData.getInterfaces();
 
@@ -315,6 +317,9 @@ public class ProxyGenerator {
                     || Modifier.isFinal(method.getModifiers())) {
                 continue;
             }
+
+            if(isPackagePrivate(method.getModifiers()) && !packagePrivate)
+                continue;
 
             MethodDeclaration methodDeclaration = Util.fromMethod(method);
 
