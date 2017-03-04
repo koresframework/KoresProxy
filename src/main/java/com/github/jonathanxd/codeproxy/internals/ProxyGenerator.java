@@ -295,12 +295,16 @@ public class ProxyGenerator {
 
         methodSet.removeIf(method -> Util.contains(methodSet, method));
 
-        List<Method> methodList = new ArrayList<>(methodSet);
+        List<Method> methodList = methodSet.stream().filter(
+                method -> !((!Modifier.isPublic(method.getModifiers())
+                        && !Modifier.isProtected(method.getModifiers())
+                        && !isPackagePrivate(method.getModifiers()))
+                        || Modifier.isFinal(method.getModifiers())) && !(isPackagePrivate(method.getModifiers()) && !packagePrivate)).collect(Collectors.toList());
 
         for (int i = 0; i < methodList.size(); i++) {
             FieldDeclaration fieldDeclaration = FieldDeclarationBuilder.builder()
                     .withModifiers(CodeModifier.PRIVATE, CodeModifier.FINAL)
-                    .withName("$Method$"+i)
+                    .withName("$Method$" + i)
                     .withType(CodeAPI.getJavaType(Method.class))
                     .withValue(Util.methodToReflectInvocation(methodList.get(i)))
                     .build();
@@ -310,16 +314,6 @@ public class ProxyGenerator {
 
         for (int i = 0; i < methodList.size(); i++) {
             Method method = methodList.get(i);
-
-            if ((!Modifier.isPublic(method.getModifiers())
-                    && !Modifier.isProtected(method.getModifiers())
-                    && !isPackagePrivate(method.getModifiers()))
-                    || Modifier.isFinal(method.getModifiers())) {
-                continue;
-            }
-
-            if(isPackagePrivate(method.getModifiers()) && !packagePrivate)
-                continue;
 
             MethodDeclaration methodDeclaration = Util.fromMethod(method);
 
@@ -343,7 +337,7 @@ public class ProxyGenerator {
 
         List<CodePart> arguments = CollectionsKt.listOf(
                 CodeAPI.accessThis(),
-                CodeAPI.accessThisField(Method.class, "$Method$"+i),
+                CodeAPI.accessThisField(Method.class, "$Method$" + i),
                 argsArray,
                 CodeAPI.accessThisField(PD_TYPE, PD_NAME)
         );
