@@ -179,7 +179,7 @@ public class ProxyGenerator {
 
         String package_;
 
-        if (superType.compareTo(Types.OBJECT) == 0) {
+        if (superType.compareTo(Types.OBJECT) == 0 || superType.getPackageName().startsWith("java.")) {
             package_ = "com.github.jonathanxd.codeproxy.generated";
         } else {
             package_ = superType.getPackageName();
