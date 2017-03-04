@@ -34,10 +34,12 @@ import com.github.jonathanxd.codeapi.Types;
 import com.github.jonathanxd.codeapi.base.ArrayConstructor;
 import com.github.jonathanxd.codeapi.base.ClassDeclaration;
 import com.github.jonathanxd.codeapi.base.ConstructorDeclaration;
+import com.github.jonathanxd.codeapi.base.FieldDeclaration;
 import com.github.jonathanxd.codeapi.base.MethodDeclaration;
 import com.github.jonathanxd.codeapi.base.TypeDeclaration;
 import com.github.jonathanxd.codeapi.builder.ClassDeclarationBuilder;
 import com.github.jonathanxd.codeapi.builder.ConstructorDeclarationBuilder;
+import com.github.jonathanxd.codeapi.builder.FieldDeclarationBuilder;
 import com.github.jonathanxd.codeapi.bytecode.BytecodeClass;
 import com.github.jonathanxd.codeapi.bytecode.BytecodeOptions;
 import com.github.jonathanxd.codeapi.bytecode.VisitLineType;
@@ -291,7 +293,21 @@ public class ProxyGenerator {
 
         methodSet.removeIf(method -> Util.contains(methodSet, method));
 
-        for (Method method : methodSet) {
+        List<Method> methodList = new ArrayList<>(methodSet);
+
+        for (int i = 0; i < methodList.size(); i++) {
+            FieldDeclaration fieldDeclaration = FieldDeclarationBuilder.builder()
+                    .withModifiers(CodeModifier.PRIVATE, CodeModifier.FINAL)
+                    .withName("$Method$"+i)
+                    .withType(CodeAPI.getJavaType(Method.class))
+                    .withValue(Util.methodToReflectInvocation(methodList.get(i)))
+                    .build();
+
+            source.add(fieldDeclaration);
+        }
+
+        for (int i = 0; i < methodList.size(); i++) {
+            Method method = methodList.get(i);
 
             if ((!Modifier.isPublic(method.getModifiers())
                     && !Modifier.isProtected(method.getModifiers())
@@ -304,14 +320,15 @@ public class ProxyGenerator {
 
             MutableCodeSource methodSource = (MutableCodeSource) methodDeclaration.getBody();
 
-            generateMethod(method, methodDeclaration, methodSource, proxyData);
+            generateMethod(i, method, methodDeclaration, methodSource, proxyData);
 
             source.add(methodDeclaration);
         }
+
     }
 
 
-    private static void generateMethod(Method m, MethodDeclaration methodDeclaration, MutableCodeSource methodSource, ProxyData proxyData) {
+    private static void generateMethod(int i, Method m, MethodDeclaration methodDeclaration, MutableCodeSource methodSource, ProxyData proxyData) {
 
         List<CodeParameter> parameterList = methodDeclaration.getParameters();
 
@@ -321,7 +338,7 @@ public class ProxyGenerator {
 
         List<CodePart> arguments = CollectionsKt.listOf(
                 CodeAPI.accessThis(),
-                Util.methodToReflectInvocation(m),
+                CodeAPI.accessThisField(Method.class, "$Method$"+i),
                 argsArray,
                 CodeAPI.accessThisField(PD_TYPE, PD_NAME)
         );
