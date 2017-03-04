@@ -31,6 +31,7 @@ import com.github.jonathanxd.codeapi.util.ToStringBuilder;
 import com.github.jonathanxd.codeproxy.handler.InvocationHandler;
 
 import java.util.Arrays;
+import java.util.Objects;
 
 public class ProxyData {
     private final ClassLoader classLoader;
@@ -74,6 +75,18 @@ public class ProxyData {
         }
 
         return super.equals(obj);
+    }
+
+    @Override
+    public int hashCode() {
+
+        int result = 1;
+
+        result = 31 * result + this.getClassLoader().hashCode();
+        result = 31 * result + this.getSuperClass().hashCode();
+        result = 31 * result + Arrays.hashCode(this.getInterfaces());
+
+        return result;
     }
 
     @Override
