@@ -27,45 +27,52 @@
  */
 package com.github.jonathanxd.codeproxy.internals;
 
-import com.github.jonathanxd.codeapi.CodeAPI;
-import com.github.jonathanxd.codeapi.CodePart;
+import com.github.jonathanxd.codeapi.CodeInstruction;
 import com.github.jonathanxd.codeapi.MutableCodeSource;
 import com.github.jonathanxd.codeapi.Types;
+import com.github.jonathanxd.codeapi.base.Access;
 import com.github.jonathanxd.codeapi.base.ArrayConstructor;
 import com.github.jonathanxd.codeapi.base.ClassDeclaration;
+import com.github.jonathanxd.codeapi.base.CodeModifier;
+import com.github.jonathanxd.codeapi.base.CodeParameter;
 import com.github.jonathanxd.codeapi.base.ConstructorDeclaration;
 import com.github.jonathanxd.codeapi.base.FieldDeclaration;
 import com.github.jonathanxd.codeapi.base.MethodDeclaration;
 import com.github.jonathanxd.codeapi.base.TypeDeclaration;
-import com.github.jonathanxd.codeapi.builder.ClassDeclarationBuilder;
-import com.github.jonathanxd.codeapi.builder.ConstructorDeclarationBuilder;
-import com.github.jonathanxd.codeapi.builder.FieldDeclarationBuilder;
+import com.github.jonathanxd.codeapi.base.TypeSpec;
 import com.github.jonathanxd.codeapi.bytecode.BytecodeClass;
 import com.github.jonathanxd.codeapi.bytecode.BytecodeOptions;
 import com.github.jonathanxd.codeapi.bytecode.VisitLineType;
-import com.github.jonathanxd.codeapi.bytecode.gen.BytecodeGenerator;
-import com.github.jonathanxd.codeapi.common.CodeModifier;
-import com.github.jonathanxd.codeapi.common.CodeParameter;
-import com.github.jonathanxd.codeapi.factory.FieldFactory;
+import com.github.jonathanxd.codeapi.bytecode.processor.BytecodeProcessor;
+import com.github.jonathanxd.codeapi.common.FieldRef;
+import com.github.jonathanxd.codeapi.factory.Factories;
+import com.github.jonathanxd.codeapi.factory.InvocationFactory;
+import com.github.jonathanxd.codeapi.factory.PartFactory;
 import com.github.jonathanxd.codeapi.literal.Literals;
-import com.github.jonathanxd.codeapi.type.CodeType;
+import com.github.jonathanxd.codeapi.util.Alias;
+import com.github.jonathanxd.codeapi.util.ImplicitCodeType;
+import com.github.jonathanxd.codeapi.util.conversion.ConversionsKt;
 import com.github.jonathanxd.codeproxy.ProxyData;
 import com.github.jonathanxd.codeproxy.handler.InvocationHandler;
+import com.github.jonathanxd.codeproxy.info.MethodInfo;
 import com.github.jonathanxd.iutils.array.ArrayUtils;
+import com.github.jonathanxd.iutils.collection.CollectionUtils;
 import com.github.jonathanxd.iutils.map.WeakValueHashMap;
+import com.github.jonathanxd.iutils.object.Pair;
 
 import java.io.File;
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.Type;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -73,15 +80,13 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import kotlin.collections.CollectionsKt;
-
 public class ProxyGenerator {
 
     private static final String PD_NAME = "$ProxyData$CodeProxy";
-    private static final CodeType PD_TYPE = CodeAPI.getJavaType(ProxyData.class);
+    private static final Type PD_TYPE = ProxyData.class;
 
     private static final String IH_NAME = "$InvocationHandler$CodeProxy";
-    private static final CodeType IH_TYPE = CodeAPI.getJavaType(InvocationHandler.class);
+    private static final Type IH_TYPE = InvocationHandler.class;
 
     private static final Map<ProxyData, Class<?>> CACHE = new WeakValueHashMap<>();
 
@@ -174,46 +179,57 @@ public class ProxyGenerator {
         if (ProxyGenerator.CACHE.containsKey(proxyData))
             return ProxyGenerator.CACHE.get(proxyData);
 
-        CodeType superType = CodeAPI.getJavaType(proxyData.getSuperClass());
-        List<CodeType> interfaces = Arrays.asList(CodeAPI.getJavaTypes(proxyData.getInterfaces()));
-
-        MutableCodeSource source = new MutableCodeSource();
+        Type superType = proxyData.getSuperClass();
+        List<Type> interfaces = Arrays.asList(proxyData.getInterfaces());
 
         boolean packagePrivate = false;
         String package_;
 
-        if (superType.compareTo(Types.OBJECT) == 0 || superType.getPackageName().startsWith("java.")) {
+        if (ImplicitCodeType.compareTo(superType, Types.OBJECT) == 0
+                || ImplicitCodeType.getPackageName(superType).startsWith("java.")) {
             package_ = "com.github.jonathanxd.codeproxy.generated";
         } else {
-            package_ = superType.getPackageName();
+            // Probably will not work in Java 9 (or 10+ if accessible by default purpose is accepted)
+            package_ = ImplicitCodeType.getPackageName(superType);
             packagePrivate = true;
         }
 
-        ClassDeclaration proxyClass = ClassDeclarationBuilder.builder()
-                .withModifiers(EnumSet.of(CodeModifier.PUBLIC, CodeModifier.SYNTHETIC))
-                .withAnnotations(CodeAPI.visibleAnnotation(Proxy.class))
-                .withQualifiedName(package_ + "." + ProxyGenerator.getProxyName())
-                .withSuperClass(superType)
-                .withImplementations(interfaces)
-                .withBody(source)
-                .build();
+        ClassDeclaration.Builder proxyClassBuilder = ClassDeclaration.Builder.builder()
+                .modifiers(CodeModifier.PUBLIC, CodeModifier.SYNTHETIC)
+                .annotations(Factories.visibleAnnotation(Proxy.class))
+                .qualifiedName(package_ + "." + ProxyGenerator.getProxyName())
+                .superClass(superType)
+                .implementations(interfaces);
 
-        generateFields(source, proxyData);
-        generateConstructor(packagePrivate, source, proxyData);
-        generateMethods(packagePrivate, source, proxyData);
+        List<FieldDeclaration> fields = new ArrayList<>();
+        List<ConstructorDeclaration> constructors = new ArrayList<>();
+        List<MethodDeclaration> methods = new ArrayList<>();
 
-        BytecodeGenerator bytecodeGenerator = new BytecodeGenerator();
+        fields.addAll(ProxyGenerator.generateFields(proxyData));
+
+        constructors.addAll(ProxyGenerator.generateConstructor(packagePrivate, proxyData));
+
+        Pair<List<FieldDeclaration>, List<MethodDeclaration>> listListPair =
+                ProxyGenerator.generateMethods(packagePrivate, proxyData);
+
+        fields.addAll(listListPair.getFirst());
+        methods.addAll(listListPair.getSecond());
+
+        proxyClassBuilder = proxyClassBuilder.fields(fields).constructors(constructors).methods(methods);
+
+        ClassDeclaration proxyClass = proxyClassBuilder.build();
+
+        BytecodeProcessor bytecodeGenerator = new BytecodeProcessor();
 
         bytecodeGenerator.getOptions().set(BytecodeOptions.VISIT_LINES, VisitLineType.FOLLOW_CODE_SOURCE);
 
-        BytecodeClass[] gen = bytecodeGenerator.gen(proxyClass);
+        List<? extends BytecodeClass> gen = bytecodeGenerator.process(proxyClass);
 
-        byte[] bytes = gen[0].getBytecode();
+        byte[] bytes = gen.get(0).getBytecode();
 
         for (BytecodeClass bytecodeClass : gen) {
             ProxyGenerator.saveProxy(bytecodeClass);
         }
-
 
         Class<?> aClass = Util.injectIntoClassLoader(proxyData.getClassLoader(), proxyClass.getCanonicalName(), bytes);
 
@@ -222,17 +238,17 @@ public class ProxyGenerator {
         return aClass;
     }
 
-    private static void generateFields(MutableCodeSource source, ProxyData proxyData) {
-        source.add(FieldFactory.field(EnumSet.of(CodeModifier.PRIVATE, CodeModifier.FINAL), IH_TYPE, IH_NAME));
-        source.add(FieldFactory.field(EnumSet.of(CodeModifier.PRIVATE, CodeModifier.FINAL), PD_TYPE, PD_NAME));
+    private static List<FieldDeclaration> generateFields(ProxyData proxyData) {
+        return CollectionUtils.listOf(
+                PartFactory.fieldDec().modifiers(CodeModifier.PRIVATE, CodeModifier.FINAL).type(IH_TYPE).name(IH_NAME).build(),
+                PartFactory.fieldDec().modifiers(CodeModifier.PRIVATE, CodeModifier.FINAL).type(PD_TYPE).name(PD_NAME).build()
+        );
     }
 
-    private static void generateConstructor(boolean packagePrivate, MutableCodeSource source, ProxyData proxyData) {
+    private static List<ConstructorDeclaration> generateConstructor(boolean packagePrivate, ProxyData proxyData) {
+        List<ConstructorDeclaration> constructors = new ArrayList<>();
 
         Class<?> superClass = proxyData.getSuperClass();
-        CodeType superType = CodeAPI.getJavaType(superClass);
-
-        int count = 0;
 
         for (Constructor<?> constructor : superClass.getConstructors()) {
 
@@ -240,46 +256,63 @@ public class ProxyGenerator {
                     || Modifier.isProtected(constructor.getModifiers())
                     || (isPackagePrivate(constructor.getModifiers()) && packagePrivate)) {
 
-                List<CodeParameter> parameters = new ArrayList<>(Util.fromParameters(constructor.getParameters()));
+                List<CodeParameter> parameters =
+                        ConversionsKt.getCodeParameters(Arrays.asList(constructor.getParameters()));
 
-                parameters.add(0, new CodeParameter(IH_TYPE, IH_NAME));
+                parameters.add(0, Factories.parameter(IH_TYPE, IH_NAME));
 
-                MutableCodeSource constructorSource = new MutableCodeSource();
+                MutableCodeSource constructorSource = MutableCodeSource.create();
 
-                ConstructorDeclaration constructorDeclaration = ConstructorDeclarationBuilder.builder()
-                        .withModifiers(CodeModifier.PUBLIC)
-                        .withParameters(parameters)
-                        .withBody(constructorSource)
+                ConstructorDeclaration constructorDeclaration = ConstructorDeclaration.Builder.builder()
+                        .modifiers(CodeModifier.PUBLIC)
+                        .parameters(parameters)
+                        .body(constructorSource)
                         .build();
 
                 if (parameters.size() > 1) {
-                    List<CodePart> arguments = Util.fromParametersToArgs(parameters.subList(1, parameters.size()).stream()).collect(Collectors.toList());
+                    List<CodeInstruction> arguments =
+                            ConversionsKt.getAccess(parameters.subList(1, parameters.size()));
 
 
-                    constructorSource.add(CodeAPI.invokeSuperConstructor(
-                            superType,
-                            CodeAPI.constructorTypeSpec(constructor.getParameterTypes()),
+                    constructorSource.add(InvocationFactory.invokeSuperConstructor(
+                            superClass,
+                            Factories.constructorTypeSpec(constructor.getParameterTypes()),
                             arguments
                     ));
 
                 }
 
                 // this.invocationHandler = invocationHandler;
-                constructorSource.add(CodeAPI.setThisField(IH_TYPE, IH_NAME, CodeAPI.accessLocalVariable(IH_TYPE, IH_NAME)));
-                constructorSource.add(CodeAPI.setThisField(PD_TYPE, PD_NAME, Util.constructProxyData(proxyData, IH_TYPE, IH_NAME)));
+                constructorSource.add(Factories.setThisFieldValue(IH_TYPE, IH_NAME, Factories.accessVariable(IH_TYPE, IH_NAME)));
+                constructorSource.add(Factories.setThisFieldValue(PD_TYPE, PD_NAME, Util.constructProxyData(proxyData, IH_TYPE, IH_NAME)));
 
-                source.add(constructorDeclaration);
-
-                ++count;
+                constructors.add(constructorDeclaration);
             }
         }
 
-        if (count == 0)
+        if (constructors.size() == 0)
             throw new IllegalArgumentException("Cannot generate proxy to super class: '" + superClass + "'! No accessible constructors.");
 
+        return constructors;
     }
 
-    private static void generateMethods(boolean packagePrivate, MutableCodeSource source, ProxyData proxyData) {
+    private static Pair<List<FieldDeclaration>, List<MethodDeclaration>>
+    generateMethods(boolean packagePrivate, ProxyData proxyData) {
+
+        List<FieldDeclaration> fields = new ArrayList<>();
+        List<MethodDeclaration> methods = new ArrayList<>();
+
+        FieldRef lookupFieldRef = new FieldRef(Alias.THIS.INSTANCE, Access.STATIC, MethodHandles.Lookup.class, "lookup");
+
+        fields.add(PartFactory.fieldDec()
+                .modifiers(CodeModifier.PRIVATE, CodeModifier.STATIC, CodeModifier.FINAL)
+                .type(lookupFieldRef.getType())
+                .name(lookupFieldRef.getName())
+                .value(InvocationFactory.invokeStatic(MethodHandles.class,
+                        "lookup",
+                        new TypeSpec(MethodHandles.Lookup.class), Collections.emptyList()))
+                .build());
+
         Class<?> superClass = proxyData.getSuperClass();
         Class<?>[] interfaces = proxyData.getInterfaces();
 
@@ -302,14 +335,14 @@ public class ProxyGenerator {
                         || Modifier.isFinal(method.getModifiers())) && !(isPackagePrivate(method.getModifiers()) && !packagePrivate)).collect(Collectors.toList());
 
         for (int i = 0; i < methodList.size(); i++) {
-            FieldDeclaration fieldDeclaration = FieldDeclarationBuilder.builder()
-                    .withModifiers(CodeModifier.PRIVATE, CodeModifier.FINAL)
-                    .withName("$Method$" + i)
-                    .withType(CodeAPI.getJavaType(Method.class))
-                    .withValue(Util.methodToReflectInvocation(methodList.get(i)))
+            FieldDeclaration fieldDeclaration = FieldDeclaration.Builder.builder()
+                    .modifiers(CodeModifier.PRIVATE, CodeModifier.FINAL)
+                    .name("$Method$" + i)
+                    .type(MethodInfo.class)
+                    .value(Util.methodToReflectInvocation(methodList.get(i), lookupFieldRef))
                     .build();
 
-            source.add(fieldDeclaration);
+            fields.add(fieldDeclaration);
         }
 
         for (int i = 0; i < methodList.size(); i++) {
@@ -319,44 +352,50 @@ public class ProxyGenerator {
 
             MutableCodeSource methodSource = (MutableCodeSource) methodDeclaration.getBody();
 
-            generateMethod(i, method, methodDeclaration, methodSource, proxyData);
+            generateMethod(i, method, methodDeclaration, methodSource);
 
-            source.add(methodDeclaration);
+            methods.add(methodDeclaration);
         }
 
+        return Pair.of(fields, methods);
     }
 
 
-    private static void generateMethod(int i, Method m, MethodDeclaration methodDeclaration, MutableCodeSource methodSource, ProxyData proxyData) {
+    private static void generateMethod(int i, Method m, MethodDeclaration methodDeclaration, MutableCodeSource methodSource) {
 
         List<CodeParameter> parameterList = methodDeclaration.getParameters();
 
-        List<CodePart> codeArgumentArray = Util.cast(Util.fromParametersToArgs(parameterList.stream()), Types.OBJECT).collect(Collectors.toList());
+        List<? extends CodeInstruction> castArguments =
+                Util.cast(ConversionsKt.getAccess(parameterList), Types.OBJECT);
 
-        ArrayConstructor argsArray = CodeAPI.arrayConstruct(Types.OBJECT.toArray(1), new CodePart[]{Literals.INT(parameterList.size())}, codeArgumentArray);
+        ArrayConstructor argsArray = Factories.createArray(
+                Types.OBJECT.toArray(1),
+                Collections.singletonList(Literals.INT(parameterList.size())),
+                castArguments);
 
-        List<CodePart> arguments = CollectionsKt.listOf(
-                CodeAPI.accessThis(),
-                CodeAPI.accessThisField(Method.class, "$Method$" + i),
+        List<? extends CodeInstruction> arguments = CollectionUtils.listOf(
+                Access.THIS,
+                Factories.accessThisField(MethodInfo.class, "$Method$" + i),
                 argsArray,
-                CodeAPI.accessThisField(PD_TYPE, PD_NAME)
+                Factories.accessThisField(PD_TYPE, PD_NAME)
         );
 
-        CodePart part = CodeAPI.invokeInterface(IH_TYPE,
-                CodeAPI.accessThisField(IH_TYPE, IH_NAME),
+        CodeInstruction part = InvocationFactory.invokeInterface(
+                IH_TYPE,
+                Factories.accessThisField(IH_TYPE, IH_NAME),
                 InvocationHandler.Info.METHOD_NAME,
                 InvocationHandler.Info.SPEC,
                 arguments);
 
-        CodeType returnType = methodDeclaration.getReturnType();
+        Type returnType = methodDeclaration.getReturnType();
 
         if (m.getReturnType() != Void.TYPE) {
 
             if (m.getReturnType() != Object.class) {
-                part = CodeAPI.cast(Types.OBJECT, returnType, part);
+                part = Factories.cast(Types.OBJECT, returnType, part);
             }
 
-            part = CodeAPI.returnValue(CodeAPI.getJavaType(m.getReturnType()), part);
+            part = Factories.returnValue(m.getReturnType(), part);
         }
 
         methodSource.add(part);

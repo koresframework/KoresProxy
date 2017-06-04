@@ -64,7 +64,7 @@ public class Test {
                 return "Oops";
             }
 
-            return method.invoke(myClass, args);
+            return method.resolveOrFail(myClass.getClass()).bindTo(myClass).invokeWithArguments(args);
         }, new Class[]{String.class}, new Object[]{"XS"});
 
         System.out.println(apb.apb());
@@ -74,6 +74,8 @@ public class Test {
 
         Assert.assertEquals("apb.apb()", "OI", apb.apb());
         Assert.assertEquals("apb.getStr()", "XS", apb.getStr());
+        Assert.assertEquals("apb.packagePrivate()", "Oops", apb.packagePrivate());
+        Assert.assertEquals("apb.r()", myClass.r(0), apb.r(0));
         Assert.assertEquals("hashCode", 7, apb.hashCode());
         Assert.assertTrue("isProxy", CodeProxy.isProxy(apb));
 

@@ -49,7 +49,7 @@ public class Readme {
             if (method.getName().equals("getNumber"))
                 return 5;
 
-            return method.invoke(origin, args);
+            return method.resolveOrFail(origin.getClass()).bindTo(origin).invokeWithArguments(args);
         });
 
         Assert.assertEquals("getNumber", 5, instance2.getNumber());
@@ -58,7 +58,7 @@ public class Readme {
 
         ClassWithConstructor cwcOrigin2 = new ClassWithConstructor("Origin 2");
         ClassWithConstructor cwc = CodeProxy.newProxyInstance(this.getClass().getClassLoader(), ClassWithConstructor.class, (instance0, method, args, proxyData) -> {
-            return method.invoke(cwcOrigin2, args);
+            return method.resolveOrFail(cwcOrigin2.getClass()).bindTo(cwcOrigin2).invokeWithArguments(args);
         }, new Class[] { String.class }, new Object[]{ cwcOrigin2.getName() });
 
         Assert.assertEquals("getName", "Origin 2", cwc.getName());

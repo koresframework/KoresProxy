@@ -40,7 +40,7 @@ MyClass instance = CodeProxy.newProxyInstance(this.getClass().getClassLoader(), 
   if (method.getName().equals("getNumber"))
     return 5;
 
-  return method.invoke(origin, args);
+  return method.resolveOrFail(origin.getClass()).bindTo(origin).invokeWithArguments(args);
 });
 
 Assert.assertEquals("getNumber", 5, instance.getNumber());
@@ -66,7 +66,7 @@ public class ClassWithConstructor {
 
 ClassWithConstructor cwcOrigin2 = new ClassWithConstructor("Origin 2");
 ClassWithConstructor cwc = CodeProxy.newProxyInstance(this.getClass().getClassLoader(), ClassWithConstructor.class, (instance0, method, args, proxyData) -> {
-  return method.invoke(cwcOrigin2, args);
+  return method.resolveOrFail(cwcOrigin2.getClass()).bindTo(cwcOrigin2).invokeWithArguments(args);
 }, new Class[] { String.class }, new Object[]{ cwcOrigin2.getName() });
 
 Assert.assertEquals("getName", "Origin 2", cwc.getName());
@@ -81,3 +81,5 @@ Assert.assertEquals("getName", "Origin 2", cwc.getName());
 #### CodeProxy compared to Java Proxies
 
 CodeProxy support Super-classes and Interfaces inheritance, Java Proxies only supports Interfaces inheritance.
+
+Since 2.1, CodeProxy uses `MethodInfo` to provide method information and delegation instead of Java methods.

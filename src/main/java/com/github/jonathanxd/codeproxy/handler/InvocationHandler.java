@@ -27,38 +27,42 @@
  */
 package com.github.jonathanxd.codeproxy.handler;
 
-import com.github.jonathanxd.codeapi.CodeAPI;
-import com.github.jonathanxd.codeapi.Types;
-import com.github.jonathanxd.codeapi.common.TypeSpec;
-import com.github.jonathanxd.codeapi.type.CodeType;
+import com.github.jonathanxd.codeapi.base.TypeSpec;
 import com.github.jonathanxd.codeproxy.ProxyData;
+import com.github.jonathanxd.codeproxy.info.MethodInfo;
 
-import java.lang.reflect.Method;
+import java.lang.reflect.Type;
 
 import kotlin.collections.CollectionsKt;
 
+/**
+ * This interface is used to handle invocation of CodeProxies
+ */
+@FunctionalInterface
 public interface InvocationHandler {
 
-    Object invoke(Object instance, Method method, Object[] args, ProxyData proxyData) throws Throwable;
-
-    enum Util {
-        ;
-
-        public static InvocationHandler fromJavaHandler(java.lang.reflect.InvocationHandler java) {
-            return (instance, method, args, proxyData) -> java.invoke(instance, method, args);
-        }
-    }
+    /**
+     * Handles the invocation of a method.
+     *
+     * @param instance   Proxy instance.
+     * @param methodInfo Information of context and called method.
+     * @param args       Arguments passed to method.
+     * @param proxyData  Information about proxy.
+     * @return Value to return in proxied method.
+     * @throws Throwable If penguins try to swim in lava.
+     */
+    Object invoke(Object instance, MethodInfo methodInfo, Object[] args, ProxyData proxyData) throws Throwable;
 
     enum Info {
         ;
         public static final String METHOD_NAME = "invoke";
         public static final TypeSpec SPEC = new TypeSpec(
-                Types.OBJECT,
-                CollectionsKt.<CodeType>listOf(
-                        Types.OBJECT,
-                        CodeAPI.getJavaType(Method.class),
-                        CodeAPI.getJavaType(Object[].class),
-                        CodeAPI.getJavaType(ProxyData.class)
+                Object.class,
+                CollectionsKt.<Type>listOf(
+                        Object.class,
+                        MethodInfo.class,
+                        Object[].class,
+                        ProxyData.class
                 ));
     }
 

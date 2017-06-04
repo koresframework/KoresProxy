@@ -27,110 +27,114 @@
  */
 package com.github.jonathanxd.codeproxy.internals;
 
-import com.github.jonathanxd.codeapi.CodeAPI;
-import com.github.jonathanxd.codeapi.CodePart;
+import com.github.jonathanxd.codeapi.CodeInstruction;
 import com.github.jonathanxd.codeapi.MutableCodeSource;
 import com.github.jonathanxd.codeapi.Types;
+import com.github.jonathanxd.codeapi.base.Access;
 import com.github.jonathanxd.codeapi.base.ArrayConstructor;
+import com.github.jonathanxd.codeapi.base.CodeModifier;
 import com.github.jonathanxd.codeapi.base.MethodDeclaration;
 import com.github.jonathanxd.codeapi.base.MethodInvocation;
-import com.github.jonathanxd.codeapi.builder.MethodDeclarationBuilder;
-import com.github.jonathanxd.codeapi.common.CodeModifier;
-import com.github.jonathanxd.codeapi.common.CodeParameter;
-import com.github.jonathanxd.codeapi.common.TypeSpec;
+import com.github.jonathanxd.codeapi.base.TypeSpec;
+import com.github.jonathanxd.codeapi.common.FieldRef;
+import com.github.jonathanxd.codeapi.factory.Factories;
+import com.github.jonathanxd.codeapi.factory.InvocationFactory;
+import com.github.jonathanxd.codeapi.factory.PartFactory;
 import com.github.jonathanxd.codeapi.literal.Literals;
 import com.github.jonathanxd.codeapi.type.CodeType;
 import com.github.jonathanxd.codeapi.util.CodePartUtil;
+import com.github.jonathanxd.codeapi.util.ImplicitCodeType;
+import com.github.jonathanxd.codeapi.util.conversion.ConversionsKt;
 import com.github.jonathanxd.codeproxy.ProxyData;
+import com.github.jonathanxd.codeproxy.info.MethodInfo;
+import com.github.jonathanxd.iutils.collection.CollectionUtils;
 
 import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
+import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import kotlin.collections.CollectionsKt;
 
 public class Util {
 
-    static CodePart methodToReflectInvocation(Method m) {
-
-        return CodeAPI.invokeVirtual(Class.class, Literals.CLASS(m.getDeclaringClass()), "getDeclaredMethod",
-                new TypeSpec(
-                        CodeAPI.getJavaType(Method.class),
-                        CollectionsKt.<CodeType>listOf(CodeAPI.getJavaType(String.class), CodeAPI.getJavaType(Class[].class))
-                ),
-                CollectionsKt.listOf(Literals.STRING(m.getName()), Util.parametersToArrayCtr(m.getParameterTypes())));
-    }
-
-    private static ArrayConstructor parametersToArrayCtr(Class<?>[] parameterTypes) {
-
-        List<CodePart> arguments = Arrays.stream(parameterTypes).map(Literals::CLASS).collect(Collectors.toList());
-
-        return CodeAPI.arrayConstruct(Types.CLASS.toArray(1), new CodePart[]{Literals.INT(parameterTypes.length)},
-                arguments);
-    }
-
-    static MethodDeclaration fromMethod(Method m) {
-        return MethodDeclarationBuilder.builder()
-                .withName(m.getName())
-                .withModifiers(EnumSet.of(CodeModifier.PUBLIC))
-                .withParameters(Util.fromParameters(m.getParameters()))
-                .withReturnType(CodeAPI.getJavaType(m.getReturnType()))
-                .withBody(new MutableCodeSource())
-                .build();
-    }
-
-    static List<CodeParameter> fromParameters(Parameter[] parameters) {
-        return Arrays.stream(parameters).map(parameter -> new CodeParameter(CodeAPI.getJavaType(parameter.getType()), parameter.getName())).collect(Collectors.toList());
-    }
-
-    static Stream<CodePart> fromParametersToArgs(Stream<CodeParameter> parameters) {
-        return parameters.map(parameter ->
-                CodeAPI.accessLocalVariable(parameter.getType(), parameter.getName())
+    static CodeInstruction methodToReflectInvocation(Method m, FieldRef lookupFieldRef) {
+        return InvocationFactory.invokeConstructor(MethodInfo.class,
+                MethodInfo.CONSTRUCTOR_SPEC, // Lookup, Class, String, Class, Class[]
+                CollectionUtils.listOf(
+                        PartFactory.fieldAccess().base(lookupFieldRef).build(),
+                        Literals.CLASS(m.getDeclaringClass()),
+                        Literals.STRING(m.getName()),
+                        Literals.CLASS(m.getReturnType()),
+                        Factories.createArray(
+                                Class[].class,
+                                Collections.singletonList(Literals.INT(m.getParameterCount())),
+                                Arrays.stream(m.getParameterTypes()).map(Literals::CLASS).collect(Collectors.toList())
+                        )
+                )
         );
     }
 
-    static Stream<CodePart> cast(Stream<CodePart> stream, CodeType target) {
-        return stream.map(argument -> {
-            CodeType type = CodePartUtil.getType(argument);
+    static MethodDeclaration fromMethod(Method m) {
+        return MethodDeclaration.Builder.builder()
+                .name(m.getName())
+                .modifiers(CodeModifier.PUBLIC)
+                .parameters(ConversionsKt.getCodeParameters(Arrays.asList(m.getParameters())))
+                .returnType(m.getReturnType())
+                .body(MutableCodeSource.create())
+                .build();
+    }
 
-            if (type.isArray())
+    static List<CodeInstruction> cast(List<CodeInstruction> list, CodeType target) {
+        return list.stream().map(argument -> {
+            Type type = CodePartUtil.getType(argument);
+
+            if (ImplicitCodeType.isArray(type))
                 return argument;
 
-            if (type.compareTo(target) != 0) {
-                return CodeAPI.cast(type, target, argument);
+            if (ImplicitCodeType.compareTo(type, target) != 0) {
+                return Factories.cast(type, target, argument);
             }
 
             return argument;
-        });
+        }).collect(Collectors.toList());
     }
 
-    static CodePart constructProxyData(ProxyData proxyData, CodeType IH_TYPE, String IH_NAME) {
+    static CodeInstruction constructProxyData(ProxyData proxyData, Type IH_TYPE, String IH_NAME) {
 
-        List<CodePart> arguments = Arrays.stream(proxyData.getInterfaces()).map(Literals::CLASS).collect(Collectors.toList());
+        List<? extends CodeInstruction> arguments =
+                Arrays.stream(proxyData.getInterfaces()).map(Literals::CLASS).collect(Collectors.toList());
 
-        ArrayConstructor arrayConstructor = CodeAPI.arrayConstruct(Types.CLASS.toArray(1), new CodePart[]{
-                Literals.INT(proxyData.getInterfaces().length)
-        }, arguments);
+        ArrayConstructor arrayConstructor = Factories.createArray(
+                Types.CLASS.toArray(1),
+                Collections.singletonList(Literals.INT(proxyData.getInterfaces().length)),
+                arguments);
 
-        return CodeAPI.invokeConstructor(CodeAPI.getJavaType(ProxyData.class),
-                CodeAPI.constructorTypeSpec(CodeAPI.getJavaType(ClassLoader.class), Types.CLASS.toArray(1), Types.CLASS, IH_TYPE),
-                CollectionsKt.listOf(Util.getClassLoader_(), arrayConstructor, Literals.CLASS(proxyData.getSuperClass()), CodeAPI.accessThisField(IH_TYPE, IH_NAME))
+        return InvocationFactory.invokeConstructor(ProxyData.class,
+                Factories.constructorTypeSpec(ClassLoader.class, Types.CLASS.toArray(1), Types.CLASS, IH_TYPE),
+                CollectionUtils.listOf(
+                        Util.getClassLoader_(),
+                        arrayConstructor,
+                        Literals.CLASS(proxyData.getSuperClass()),
+                        Factories.accessThisField(IH_TYPE, IH_NAME)
+                )
         );
     }
 
     private static MethodInvocation getClassLoader_() {
-        return CodeAPI.invokeVirtual(Class.class,
-                Util.getClass_(), "getClassLoader", new TypeSpec(CodeAPI.getJavaType(ClassLoader.class)), Collections.emptyList());
+        return InvocationFactory.invokeVirtual(Class.class,
+                Util.getClass_(), "getClassLoader", new TypeSpec(ClassLoader.class), Collections.emptyList());
     }
 
     private static MethodInvocation getClass_() {
-        return CodeAPI.invokeVirtual(Object.class, CodeAPI.accessThis(), "getClass", new TypeSpec(CodeAPI.getJavaType(Class.class)), Collections.emptyList());
+        return InvocationFactory.invokeVirtual(
+                Object.class,
+                Access.THIS,
+                "getClass",
+                new TypeSpec(Class.class),
+                Collections.emptyList()
+        );
     }
 
     static Class<?> injectIntoClassLoader(ClassLoader classLoader, String name, byte[] bytes) {
