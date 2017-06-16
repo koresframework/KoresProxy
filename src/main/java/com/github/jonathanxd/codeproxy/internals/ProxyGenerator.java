@@ -40,6 +40,7 @@ import com.github.jonathanxd.codeapi.base.FieldDeclaration;
 import com.github.jonathanxd.codeapi.base.MethodDeclaration;
 import com.github.jonathanxd.codeapi.base.TypeDeclaration;
 import com.github.jonathanxd.codeapi.base.TypeSpec;
+import com.github.jonathanxd.codeapi.base.VariableDeclaration;
 import com.github.jonathanxd.codeapi.bytecode.BytecodeClass;
 import com.github.jonathanxd.codeapi.bytecode.BytecodeOptions;
 import com.github.jonathanxd.codeapi.bytecode.VisitLineType;
@@ -48,10 +49,12 @@ import com.github.jonathanxd.codeapi.common.FieldRef;
 import com.github.jonathanxd.codeapi.factory.Factories;
 import com.github.jonathanxd.codeapi.factory.InvocationFactory;
 import com.github.jonathanxd.codeapi.factory.PartFactory;
+import com.github.jonathanxd.codeapi.factory.VariableFactory;
 import com.github.jonathanxd.codeapi.literal.Literals;
 import com.github.jonathanxd.codeapi.util.Alias;
 import com.github.jonathanxd.codeapi.util.ImplicitCodeType;
 import com.github.jonathanxd.codeapi.util.conversion.ConversionsKt;
+import com.github.jonathanxd.codeproxy.InvokeSuper;
 import com.github.jonathanxd.codeproxy.ProxyData;
 import com.github.jonathanxd.codeproxy.handler.InvocationHandler;
 import com.github.jonathanxd.codeproxy.info.MethodInfo;
@@ -389,16 +392,33 @@ public class ProxyGenerator {
 
         Type returnType = methodDeclaration.getReturnType();
 
+        VariableDeclaration var = VariableFactory.variable(Types.OBJECT, "result", part);
+
+        methodSource.add(var);
+
+        CodeInstruction invoke = InvocationFactory.invokeSpecial(
+                m.getDeclaringClass(), Access.SUPER, m.getName(), methodDeclaration.getTypeSpec(),
+                methodDeclaration.getParameters().stream().map(ConversionsKt::toVariableAccess).collect(Collectors.toList())
+        );
+
+
         if (m.getReturnType() != Void.TYPE) {
-
-            if (m.getReturnType() != Object.class) {
-                part = Factories.cast(Types.OBJECT, returnType, part);
-            }
-
-            part = Factories.returnValue(m.getReturnType(), part);
+            invoke = Factories.setVariableValue(var.getType(), var.getName(),
+                    Factories.cast(returnType, Types.OBJECT, invoke)
+            );
         }
 
-        methodSource.add(part);
+
+        methodSource.add(Factories.ifStatement(Factories.checkTrue(Factories.isInstanceOf(
+                Factories.accessVariable(var), InvokeSuper.class
+        )), PartFactory.source(invoke)));
+
+        if(m.getReturnType() != Void.TYPE) {
+            methodSource.add(Factories.returnValue(returnType, Factories.cast(Types.OBJECT, returnType, Factories.accessVariable(var))));
+        } else {
+            methodSource.add(Factories.returnVoid());
+        }
+
     }
 
     private static void saveProxy(BytecodeClass bytecodeClass) {
