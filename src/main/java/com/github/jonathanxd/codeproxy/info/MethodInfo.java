@@ -37,6 +37,7 @@ import org.jetbrains.annotations.Nullable;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -163,13 +164,53 @@ public final class MethodInfo {
      * Resolves the {@link MethodHandle} of this method in {@code target}.
      *
      * @param target Target class to find method.
-     * @return Resolved method handle, or null if cannot be found.
+     * @return Resolved method handle, or throw exception if cannot be found.
      */
     public @NotNull
     MethodHandle resolveOrFail(Class<?> target) {
         try {
             return this.lookup.findVirtual(target, this.name, MethodType.methodType(returnType, parameterTypesArray));
         } catch (NoSuchMethodException | IllegalAccessException e) {
+            throw new RethrowException(e);
+        }
+    }
+
+    /**
+     * Resolves the {@link Method} of this method info in {@code target}.
+     *
+     * @param target Target class to find method.
+     * @return Resolve method or null if method cannot be found.
+     */
+    public @Nullable
+    Method resolveToReflect(Class<?> target) {
+        try {
+            Method method = target.getMethod(this.getName(), this.parameterTypesArray);
+
+            if (!method.isAccessible())
+                method.setAccessible(true);
+
+            return method;
+        } catch (NoSuchMethodException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Resolves the {@link Method} of this method info in {@code target}.
+     *
+     * @param target Target class to find method.
+     * @return Resolve method or throw exception if method cannot be found.
+     */
+    public @NotNull
+    Method resolveToReflectOrFail(Class<?> target) {
+        try {
+            Method method = target.getMethod(this.getName(), this.parameterTypesArray);
+
+            if (!method.isAccessible())
+                method.setAccessible(true);
+
+            return method;
+        } catch (NoSuchMethodException e) {
             throw new RethrowException(e);
         }
     }
