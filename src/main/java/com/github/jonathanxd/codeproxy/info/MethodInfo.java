@@ -176,6 +176,36 @@ public final class MethodInfo {
     }
 
     /**
+     * Resolves the {@link MethodHandle} of this method in {@code target}.
+     *
+     * @param target Target class to find method.
+     * @return Resolved method handle, or null if cannot be found.
+     */
+    public @Nullable
+    MethodHandle resolveSpecial(Class<?> target, Class<?> specialClass) {
+        try {
+            return this.lookup.findSpecial(target, this.name, MethodType.methodType(returnType, parameterTypesArray), specialClass);
+        } catch (NoSuchMethodException | IllegalAccessException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Resolves the {@link MethodHandle} of this method in {@code target}.
+     *
+     * @param target Target class to find method.
+     * @return Resolved method handle, or throw exception if cannot be found.
+     */
+    public @NotNull
+    MethodHandle resolveSpecialOrFail(Class<?> target, Class<?> specialClass) {
+        try {
+            return this.lookup.findSpecial(target, this.name, MethodType.methodType(returnType, parameterTypesArray), specialClass);
+        } catch (NoSuchMethodException | IllegalAccessException e) {
+            throw new RethrowException(e);
+        }
+    }
+
+    /**
      * Resolves the {@link Method} of this method info in {@code target}.
      *
      * @param target Target class to find method.
