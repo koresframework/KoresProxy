@@ -28,7 +28,7 @@
 package com.github.jonathanxd.codeproxy.info;
 
 import com.github.jonathanxd.codeapi.base.TypeSpec;
-import com.github.jonathanxd.iutils.collection.CollectionUtils;
+import com.github.jonathanxd.iutils.collection.Collections3;
 import com.github.jonathanxd.iutils.exception.RethrowException;
 
 import org.jetbrains.annotations.NotNull;
@@ -54,7 +54,7 @@ public final class MethodInfo {
      * Specification of constructor.
      */
     public static TypeSpec CONSTRUCTOR_SPEC = new TypeSpec(Void.TYPE,
-            CollectionUtils.listOf(MethodHandles.Lookup.class, Class.class, String.class, Class.class, Class[].class));
+            Collections3.listOf(MethodHandles.Lookup.class, Class.class, String.class, Class.class, Class[].class));
 
     /**
      * Lookup created in proxy context.

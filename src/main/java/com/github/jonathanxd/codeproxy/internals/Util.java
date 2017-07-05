@@ -47,7 +47,7 @@ import com.github.jonathanxd.codeapi.util.ImplicitCodeType;
 import com.github.jonathanxd.codeapi.util.conversion.ConversionsKt;
 import com.github.jonathanxd.codeproxy.ProxyData;
 import com.github.jonathanxd.codeproxy.info.MethodInfo;
-import com.github.jonathanxd.iutils.collection.CollectionUtils;
+import com.github.jonathanxd.iutils.collection.Collections3;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
@@ -62,7 +62,7 @@ public class Util {
     static CodeInstruction methodToReflectInvocation(Method m, FieldRef lookupFieldRef) {
         return InvocationFactory.invokeConstructor(MethodInfo.class,
                 MethodInfo.CONSTRUCTOR_SPEC, // Lookup, Class, String, Class, Class[]
-                CollectionUtils.listOf(
+                Collections3.listOf(
                         PartFactory.fieldAccess().base(lookupFieldRef).build(),
                         Literals.CLASS(m.getDeclaringClass()),
                         Literals.STRING(m.getName()),
@@ -113,7 +113,7 @@ public class Util {
 
         return InvocationFactory.invokeConstructor(ProxyData.class,
                 Factories.constructorTypeSpec(ClassLoader.class, Types.CLASS.toArray(1), Types.CLASS, IH_TYPE),
-                CollectionUtils.listOf(
+                Collections3.listOf(
                         Util.getClassLoader_(),
                         arrayConstructor,
                         Literals.CLASS(proxyData.getSuperClass()),

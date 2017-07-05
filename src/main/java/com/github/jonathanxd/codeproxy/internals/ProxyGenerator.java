@@ -59,7 +59,7 @@ import com.github.jonathanxd.codeproxy.ProxyData;
 import com.github.jonathanxd.codeproxy.handler.InvocationHandler;
 import com.github.jonathanxd.codeproxy.info.MethodInfo;
 import com.github.jonathanxd.iutils.array.ArrayUtils;
-import com.github.jonathanxd.iutils.collection.CollectionUtils;
+import com.github.jonathanxd.iutils.collection.Collections3;
 import com.github.jonathanxd.iutils.map.WeakValueHashMap;
 import com.github.jonathanxd.iutils.object.Pair;
 
@@ -242,7 +242,7 @@ public class ProxyGenerator {
     }
 
     private static List<FieldDeclaration> generateFields(ProxyData proxyData) {
-        return CollectionUtils.listOf(
+        return Collections3.listOf(
                 PartFactory.fieldDec().modifiers(CodeModifier.PRIVATE, CodeModifier.FINAL).type(IH_TYPE).name(IH_NAME).build(),
                 PartFactory.fieldDec().modifiers(CodeModifier.PRIVATE, CodeModifier.FINAL).type(PD_TYPE).name(PD_NAME).build()
         );
@@ -376,7 +376,7 @@ public class ProxyGenerator {
                 Collections.singletonList(Literals.INT(parameterList.size())),
                 castArguments);
 
-        List<? extends CodeInstruction> arguments = CollectionUtils.listOf(
+        List<? extends CodeInstruction> arguments = Collections3.listOf(
                 Access.THIS,
                 Factories.accessThisField(MethodInfo.class, "$Method$" + i),
                 argsArray,
