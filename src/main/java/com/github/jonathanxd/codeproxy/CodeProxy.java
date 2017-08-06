@@ -27,10 +27,39 @@
  */
 package com.github.jonathanxd.codeproxy;
 
+import com.github.jonathanxd.codeproxy.gen.CustomGen;
+import com.github.jonathanxd.codeproxy.gen.CustomHandlerGenerator;
 import com.github.jonathanxd.codeproxy.handler.InvocationHandler;
 import com.github.jonathanxd.codeproxy.internals.ProxyGenerator;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.UnaryOperator;
+
 public class CodeProxy {
+
+    private static final List<Class<? extends CustomHandlerGenerator>> DEFAULT_CUSTOM_HANDLERS = new ArrayList<>();
+    private static final List<Class<? extends CustomGen>> DEFAULT_CUSTOM_GENS = new ArrayList<>();
+
+    static {
+        DEFAULT_CUSTOM_GENS.add(InvokeSuper.class);
+    }
+
+    /**
+     * Generate new proxy instance based on {@link ProxyData}.
+     *
+     * @param <T>      Type of proxy.
+     * @param argTypes Types of arguments of constructor of {@code superClass}.
+     * @param args     Arguments to pass to constructor of {@code superClass}
+     * @param operator Operator that applies definitions to {@link ProxyData.Builder}.
+     * @return Proxy instance.
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> T newProxyInstance(Class<?>[] argTypes,
+                                         Object[] args,
+                                         UnaryOperator<ProxyData.Builder> operator) {
+        return (T) ProxyGenerator.create(operator.apply(ProxyData.Builder.builder()).build(), argTypes, args);
+    }
 
     /**
      * Generate new proxy instance that extends {@code superClass}, implements {@code interfaces},
@@ -53,7 +82,8 @@ public class CodeProxy {
                                          InvocationHandler invocationHandler,
                                          Class<?>[] argTypes,
                                          Object[] args) {
-        return (T) ProxyGenerator.create(new ProxyData(classLoader, interfaces, superClass, invocationHandler), argTypes, args);
+        return (T) ProxyGenerator.create(new ProxyData(classLoader, interfaces, superClass, invocationHandler,
+                new ArrayList<>(DEFAULT_CUSTOM_HANDLERS), new ArrayList<>(DEFAULT_CUSTOM_GENS)), argTypes, args);
     }
 
     /**
@@ -77,9 +107,8 @@ public class CodeProxy {
     }
 
     /**
-     * Generate new proxy instance that implements {@code interfaces},
-     * delegates invocations to {@code invocationHandler} and inject proxy instance into {@code
-     * classLoader}.
+     * Generate new proxy instance that implements {@code interfaces}, delegates invocations to
+     * {@code invocationHandler} and inject proxy instance into {@code classLoader}.
      *
      * @param classLoader       Class loader to inject proxy instance.
      * @param interfaces        Interfaces to implements.
@@ -114,9 +143,8 @@ public class CodeProxy {
     }
 
     /**
-     * Generate new proxy instance that extends {@code superClass},
-     * delegates invocations to {@code invocationHandler} and inject proxy instance into {@code
-     * classLoader}.
+     * Generate new proxy instance that extends {@code superClass}, delegates invocations to {@code
+     * invocationHandler} and inject proxy instance into {@code classLoader}.
      *
      * @param classLoader       Class loader to inject proxy instance.
      * @param superClass        Super class of Proxy.

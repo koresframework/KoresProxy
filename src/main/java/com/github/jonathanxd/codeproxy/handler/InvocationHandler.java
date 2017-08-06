@@ -36,7 +36,7 @@ import java.lang.reflect.Type;
 import kotlin.collections.CollectionsKt;
 
 /**
- * This interface is used to handle invocation of CodeProxies
+ * This interface is used to handle invocation of CodeProxies.
  */
 @FunctionalInterface
 public interface InvocationHandler {
@@ -44,11 +44,15 @@ public interface InvocationHandler {
     /**
      * Handles the invocation of a method.
      *
+     * You can also return {@link com.github.jonathanxd.codeproxy.InvokeSuper#INVOKE_SUPER} to
+     * request a super invocation of the method in the proxy class context. (Only works if {@link
+     * ProxyData} specified it during class generation)
+     *
      * @param instance   Proxy instance.
      * @param methodInfo Information of context and called method.
      * @param args       Arguments passed to method.
      * @param proxyData  Information about proxy.
-     * @return Value to return in proxied method.
+     * @return Value to return in proxy method.
      * @throws Throwable If penguins try to swim in lava.
      */
     Object invoke(Object instance, MethodInfo methodInfo, Object[] args, ProxyData proxyData) throws Throwable;

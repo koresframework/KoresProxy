@@ -36,19 +36,25 @@ import com.github.jonathanxd.codeapi.base.CodeModifier;
 import com.github.jonathanxd.codeapi.base.MethodDeclaration;
 import com.github.jonathanxd.codeapi.base.MethodInvocation;
 import com.github.jonathanxd.codeapi.base.TypeSpec;
+import com.github.jonathanxd.codeapi.base.VariableAccess;
 import com.github.jonathanxd.codeapi.common.FieldRef;
 import com.github.jonathanxd.codeapi.factory.Factories;
 import com.github.jonathanxd.codeapi.factory.InvocationFactory;
 import com.github.jonathanxd.codeapi.factory.PartFactory;
 import com.github.jonathanxd.codeapi.literal.Literals;
 import com.github.jonathanxd.codeapi.type.CodeType;
+import com.github.jonathanxd.codeapi.type.Generic;
 import com.github.jonathanxd.codeapi.util.CodePartUtil;
 import com.github.jonathanxd.codeapi.util.ImplicitCodeType;
 import com.github.jonathanxd.codeapi.util.conversion.ConversionsKt;
 import com.github.jonathanxd.codeproxy.ProxyData;
+import com.github.jonathanxd.codeproxy.gen.CustomGen;
+import com.github.jonathanxd.codeproxy.gen.CustomHandlerGenerator;
 import com.github.jonathanxd.codeproxy.info.MethodInfo;
 import com.github.jonathanxd.iutils.collection.Collections3;
+import com.github.jonathanxd.iutils.exception.RethrowException;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.Arrays;
@@ -57,7 +63,21 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import kotlin.collections.CollectionsKt;
+
 public class Util {
+
+    /**
+     * {@code List<Class<? extends CustomHandlerGenerator>>}
+     */
+    static CodeType LIST_OF_CUSTOM_HANDLER_GENERATORS = Generic.type(List.class).of(
+            Generic.type(Class.class).of(Generic.wildcard().extends$(CustomHandlerGenerator.class)));
+
+    /**
+     * {@code List<Class<? extends CustomGen>>}
+     */
+    static CodeType LIST_OF_CUSTOM_GENERATORS = Generic.type(List.class).of(
+            Generic.type(Class.class).of(Generic.wildcard().extends$(CustomGen.class)));
 
     static CodeInstruction methodToReflectInvocation(Method m, FieldRef lookupFieldRef) {
         return InvocationFactory.invokeConstructor(MethodInfo.class,
@@ -101,7 +121,9 @@ public class Util {
         }).collect(Collectors.toList());
     }
 
-    static CodeInstruction constructProxyData(ProxyData proxyData, Type IH_TYPE, String IH_NAME) {
+    static CodeInstruction constructProxyData(ProxyData proxyData,
+                                              Type IH_TYPE,
+                                              String IH_NAME) {
 
         List<? extends CodeInstruction> arguments =
                 Arrays.stream(proxyData.getInterfaces()).map(Literals::CLASS).collect(Collectors.toList());
@@ -112,14 +134,28 @@ public class Util {
                 arguments);
 
         return InvocationFactory.invokeConstructor(ProxyData.class,
-                Factories.constructorTypeSpec(ClassLoader.class, Types.CLASS.toArray(1), Types.CLASS, IH_TYPE),
+                Factories.constructorTypeSpec(ClassLoader.class, Types.CLASS.toArray(1), Types.CLASS, IH_TYPE,
+                        LIST_OF_CUSTOM_HANDLER_GENERATORS, LIST_OF_CUSTOM_GENERATORS),
                 Collections3.listOf(
                         Util.getClassLoader_(),
                         arrayConstructor,
                         Literals.CLASS(proxyData.getSuperClass()),
-                        Factories.accessThisField(IH_TYPE, IH_NAME)
+                        Factories.accessThisField(IH_TYPE, IH_NAME),
+                        Util.callListOf(CollectionsKt.map(proxyData.getCustomHandlerGeneratorsView(), Literals::CLASS)),
+                        Util.callListOf(CollectionsKt.map(proxyData.getCustomGeneratorsView(), Literals::CLASS))
                 )
         );
+    }
+
+    private static CodeInstruction callListOf(List<? extends CodeInstruction> lst) {
+        return InvocationFactory.invokeStatic(Collections3.class,
+                "listOf",
+                new TypeSpec(List.class, Collections3.listOf(Generic.type("E").toArray(1))),
+                Collections3.listOf(
+                        Factories.createArray(Generic.type("E").toArray(1),
+                                Collections3.listOf(Literals.INT(lst.size())),
+                                lst)
+                ));
     }
 
     private static MethodInvocation getClassLoader_() {
@@ -162,5 +198,19 @@ public class Util {
         }
 
         return false;
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <T> T getInstance(Class<T> cl) {
+        try {
+            return (T) cl.getDeclaredField("INSTANCE").get(null);
+        } catch (Exception e) {
+            try {
+                return cl.getConstructor().newInstance();
+            } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e1) {
+                e1.addSuppressed(e);
+                throw RethrowException.rethrow(e1);
+            }
+        }
     }
 }

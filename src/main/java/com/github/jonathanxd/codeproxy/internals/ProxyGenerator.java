@@ -36,6 +36,7 @@ import com.github.jonathanxd.codeapi.base.ClassDeclaration;
 import com.github.jonathanxd.codeapi.base.CodeModifier;
 import com.github.jonathanxd.codeapi.base.CodeParameter;
 import com.github.jonathanxd.codeapi.base.ConstructorDeclaration;
+import com.github.jonathanxd.codeapi.base.FieldAccess;
 import com.github.jonathanxd.codeapi.base.FieldDeclaration;
 import com.github.jonathanxd.codeapi.base.MethodDeclaration;
 import com.github.jonathanxd.codeapi.base.TypeDeclaration;
@@ -56,12 +57,18 @@ import com.github.jonathanxd.codeapi.util.ImplicitCodeType;
 import com.github.jonathanxd.codeapi.util.conversion.ConversionsKt;
 import com.github.jonathanxd.codeproxy.InvokeSuper;
 import com.github.jonathanxd.codeproxy.ProxyData;
+import com.github.jonathanxd.codeproxy.gen.CustomGen;
+import com.github.jonathanxd.codeproxy.gen.CustomHandlerGenerator;
+import com.github.jonathanxd.codeproxy.gen.GenEnv;
 import com.github.jonathanxd.codeproxy.handler.InvocationHandler;
 import com.github.jonathanxd.codeproxy.info.MethodInfo;
 import com.github.jonathanxd.iutils.array.ArrayUtils;
 import com.github.jonathanxd.iutils.collection.Collections3;
+import com.github.jonathanxd.iutils.exception.RethrowException;
 import com.github.jonathanxd.iutils.map.WeakValueHashMap;
 import com.github.jonathanxd.iutils.object.Pair;
+
+import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.lang.invoke.MethodHandles;
@@ -105,7 +112,7 @@ public class ProxyGenerator {
     private static final String IH_NAME = "$InvocationHandler$CodeProxy";
     private static final Type IH_TYPE = InvocationHandler.class;
 
-    private static final Map<ProxyData, Class<?>> CACHE = new WeakValueHashMap<>();
+    private static final Map<ProxyData, Class<?>> CACHE = Collections.synchronizedMap(new WeakValueHashMap<>());
 
     private static final boolean SAVE_PROXIES;
     private static long PROXY_COUNT = 0;
@@ -130,6 +137,7 @@ public class ProxyGenerator {
      */
     public static boolean isCachedProxy(Object o) {
         Objects.requireNonNull(o, "Argument 'o' cannot be null!");
+
 
         return ProxyGenerator.CACHE.containsValue(o.getClass());
     }
@@ -196,9 +204,9 @@ public class ProxyGenerator {
      * @param args     Arguments to pass to constructor.
      */
     public static Object create(ProxyData proxyData, Class<?>[] argTypes, Object[] args) {
-        try {
-            Class<?> construct = ProxyGenerator.construct(proxyData);
+        Class<?> construct = ProxyGenerator.construct(proxyData);
 
+        try {
             Class[] types = new Class[]{InvocationHandler.class};
             Object[] arguments = new Object[]{proxyData.getHandler()};
 
@@ -209,7 +217,7 @@ public class ProxyGenerator {
 
             return construct.getConstructor(types).newInstance(arguments);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw RethrowException.rethrow(e);
         }
     }
 
@@ -218,8 +226,10 @@ public class ProxyGenerator {
      */
     private static Class<?> construct(ProxyData proxyData) {
 
-        if (ProxyGenerator.CACHE.containsKey(proxyData))
-            return ProxyGenerator.CACHE.get(proxyData);
+        synchronized (ProxyGenerator.CACHE) {
+            if (ProxyGenerator.CACHE.containsKey(proxyData))
+                return ProxyGenerator.CACHE.get(proxyData);
+        }
 
         Type superType = proxyData.getSuperClass();
         List<Type> interfaces = Arrays.asList(proxyData.getInterfaces());
@@ -310,6 +320,7 @@ public class ProxyGenerator {
                 List<CodeParameter> parameters =
                         ConversionsKt.getCodeParameters(Arrays.asList(constructor.getParameters()));
 
+                // InvocationHandler
                 parameters.add(0, Factories.parameter(IH_TYPE, IH_NAME));
 
                 MutableCodeSource constructorSource = MutableCodeSource.create();
@@ -321,7 +332,7 @@ public class ProxyGenerator {
                         .build();
 
                 if (parameters.size() > 1) {
-                    List<CodeInstruction> arguments =
+                    List<CodeInstruction> arguments = // 1 = Ignore IH parameter.
                             ConversionsKt.getAccess(parameters.subList(1, parameters.size()));
 
 
@@ -334,8 +345,11 @@ public class ProxyGenerator {
                 }
 
                 // Define common fields value
-                constructorSource.add(Factories.setThisFieldValue(IH_TYPE, IH_NAME, Factories.accessVariable(IH_TYPE, IH_NAME)));
-                constructorSource.add(Factories.setThisFieldValue(PD_TYPE, PD_NAME, Util.constructProxyData(proxyData, IH_TYPE, IH_NAME)));
+                constructorSource.add(Factories.setThisFieldValue(IH_TYPE, IH_NAME,
+                        Factories.accessVariable(IH_TYPE, IH_NAME)));
+
+                constructorSource.add(Factories.setThisFieldValue(PD_TYPE, PD_NAME,
+                        Util.constructProxyData(proxyData, IH_TYPE, IH_NAME)));
 
                 constructors.add(constructorDeclaration);
             }
@@ -410,7 +424,7 @@ public class ProxyGenerator {
 
             MutableCodeSource methodSource = (MutableCodeSource) methodDeclaration.getBody();
 
-            generateMethodBody(i, method, methodDeclaration, methodSource);
+            generateMethodBody(proxyData, i, method, methodDeclaration, methodSource);
 
             methods.add(methodDeclaration);
         }
@@ -419,69 +433,96 @@ public class ProxyGenerator {
     }
 
     /**
-     * Generates the body of proxy method.
+     * Generates the body of proxy method. Here is where custom handler generators and custom
+     * generators are called.
      *
+     * @param proxyData         Proxy data.
      * @param i                 Index of the method in the {@code method table} (concept), this is
      *                          used to locate constant {@link MethodInfo}.
      * @param m                 Original method to generate proxy body.
      * @param methodDeclaration Declaration of the proxy method.
      * @param methodSource      Source of the method. Instruction will be added to this source.
      */
-    private static void generateMethodBody(int i, Method m, MethodDeclaration methodDeclaration, MutableCodeSource methodSource) {
+    private static void generateMethodBody(ProxyData proxyData,
+                                           int i, Method m, MethodDeclaration methodDeclaration, MutableCodeSource methodSource) {
 
-        List<CodeParameter> parameterList = methodDeclaration.getParameters();
+        FieldAccess lookupAccess = Factories.accessStaticField(MethodHandles.Lookup.class, "lookup");
+        FieldAccess methodInfoAccess = Factories.accessStaticField(MethodInfo.class, "$Method$" + i);
 
-        List<? extends CodeInstruction> castArguments =
-                Util.cast(ConversionsKt.getAccess(parameterList), Types.OBJECT);
+        FieldAccess proxyDataAccess = Factories.accessThisField(PD_TYPE, PD_NAME);
+        FieldAccess invocationHandlerAccess = Factories.accessThisField(IH_TYPE, IH_NAME);
 
-        ArrayConstructor argsArray = Factories.createArray(
-                Types.OBJECT.toArray(1),
-                Collections.singletonList(Literals.INT(parameterList.size())),
-                castArguments);
+        boolean shouldGenInvk = true;
 
-        List<? extends CodeInstruction> arguments = Collections3.listOf(
-                Access.THIS,
-                Factories.accessStaticField(MethodInfo.class, "$Method$" + i),
-                argsArray,
-                Factories.accessThisField(PD_TYPE, PD_NAME)
-        );
+        int count = 0;
+        for (Class<? extends CustomHandlerGenerator> customHandlerClass : proxyData.getCustomHandlerGeneratorsView()) {
+            CustomHandlerGenerator customHandler = Util.getInstance(customHandlerClass);
+            GenEnv genEnv = new GenEnv(count, proxyData, m, methodDeclaration, lookupAccess, proxyDataAccess, invocationHandlerAccess, methodInfoAccess) {
+                @Override
+                public void callCustomGenerators(@Nullable VariableDeclaration returnVariable, MutableCodeSource source) {
+                    for (Class<? extends CustomGen> customGenClass : this.getProxyData().getCustomGeneratorsView()) {
+                        CustomGen customGen = Util.getInstance(customGenClass);
+                        source.addAll(customGen.gen(this.getMethod(), this.getMethodDeclaration(), returnVariable));
+                    }
+                }
+            };
 
-        CodeInstruction part = InvocationFactory.invokeInterface(
-                IH_TYPE,
-                Factories.accessThisField(IH_TYPE, IH_NAME),
-                InvocationHandler.Info.METHOD_NAME,
-                InvocationHandler.Info.SPEC,
-                arguments);
+            methodSource.addAll(customHandler.handle(m, methodDeclaration, genEnv));
 
-        Type returnType = methodDeclaration.getReturnType();
+            shouldGenInvk &= genEnv.isInvokeHandler();
 
-        VariableDeclaration var = VariableFactory.variable(Types.OBJECT, "result", part);
+            if (!genEnv.isMayProceed()) {
+                break;
+            }
 
-        methodSource.add(var);
+            ++count;
+        }
 
-        CodeInstruction invoke = InvocationFactory.invokeSpecial(
-                m.getDeclaringClass(), Access.SUPER, m.getName(), methodDeclaration.getTypeSpec(),
-                methodDeclaration.getParameters().stream().map(ConversionsKt::toVariableAccess).collect(Collectors.toList())
-        );
+        if (shouldGenInvk) {
 
+            List<CodeParameter> parameterList = methodDeclaration.getParameters();
 
-        if (m.getReturnType() != Void.TYPE) {
-            invoke = Factories.setVariableValue(var.getType(), var.getName(),
-                    Factories.cast(returnType, Types.OBJECT, invoke)
+            List<? extends CodeInstruction> castArguments =
+                    Util.cast(ConversionsKt.getAccess(parameterList), Types.OBJECT);
+
+            ArrayConstructor argsArray = Factories.createArray(
+                    Types.OBJECT.toArray(1),
+                    Collections.singletonList(Literals.INT(parameterList.size())),
+                    castArguments);
+
+            List<? extends CodeInstruction> arguments = Collections3.listOf(
+                    Access.THIS,
+                    methodInfoAccess,
+                    argsArray,
+                    proxyDataAccess
             );
+
+            CodeInstruction part = InvocationFactory.invokeInterface(
+                    IH_TYPE,
+                    invocationHandlerAccess,
+                    InvocationHandler.Info.METHOD_NAME,
+                    InvocationHandler.Info.SPEC,
+                    arguments);
+
+            Type returnType = methodDeclaration.getReturnType();
+
+            boolean isVoid = ImplicitCodeType.is(m.getReturnType(), Void.TYPE);
+
+            VariableDeclaration var = VariableFactory.variable(Types.OBJECT, "result", part);
+
+            methodSource.add(var);
+
+            for (Class<? extends CustomGen> customGenClass : proxyData.getCustomGeneratorsView()) {
+                CustomGen customGen = Util.getInstance(customGenClass);
+                methodSource.addAll(customGen.gen(m, methodDeclaration, var));
+            }
+
+            if (!isVoid) {
+                methodSource.add(Factories.returnValue(returnType, Factories.cast(Types.OBJECT, returnType, Factories.accessVariable(var))));
+            } else {
+                methodSource.add(Factories.returnVoid());
+            }
         }
-
-
-        methodSource.add(Factories.ifStatement(Factories.checkTrue(Factories.isInstanceOf(
-                Factories.accessVariable(var), InvokeSuper.class
-        )), PartFactory.source(invoke)));
-
-        if (m.getReturnType() != Void.TYPE) {
-            methodSource.add(Factories.returnValue(returnType, Factories.cast(Types.OBJECT, returnType, Factories.accessVariable(var))));
-        } else {
-            methodSource.add(Factories.returnVoid());
-        }
-
     }
 
     /**
