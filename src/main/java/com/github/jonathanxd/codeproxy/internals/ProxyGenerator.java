@@ -44,7 +44,7 @@ import com.github.jonathanxd.codeapi.base.VariableDeclaration;
 import com.github.jonathanxd.codeapi.bytecode.BytecodeClass;
 import com.github.jonathanxd.codeapi.bytecode.BytecodeOptions;
 import com.github.jonathanxd.codeapi.bytecode.VisitLineType;
-import com.github.jonathanxd.codeapi.bytecode.processor.BytecodeProcessor;
+import com.github.jonathanxd.codeapi.bytecode.processor.BytecodeGenerator;
 import com.github.jonathanxd.codeapi.common.FieldRef;
 import com.github.jonathanxd.codeapi.factory.Factories;
 import com.github.jonathanxd.codeapi.factory.InvocationFactory;
@@ -83,6 +83,20 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * Generator of proxy classes, generate classes may also include {@code package-private} method
+ * handling, this is only possible when proxy generate class is defined in the same package as
+ * target class.
+ *
+ * Generated proxy classes have 2 {@code common fields}, which holds {@link ProxyData} and {@link
+ * InvocationHandler} and a {@link MethodHandles.Lookup lookup field} used to lookup and invoke
+ * other methods from {@link InvocationHandler} context.
+ *
+ * Generated proxy class have also a {@code method table}, this is not a true table, is only a
+ * mapping of method to {@link MethodInfo}. Each method has it own {@link MethodInfo}, which is a
+ * constant and contains method details, the {@link MethodInfo} is provided to {@link
+ * InvocationHandler}.
+ */
 public class ProxyGenerator {
 
     private static final String PD_NAME = "$ProxyData$CodeProxy";
@@ -101,18 +115,29 @@ public class ProxyGenerator {
         SAVE_PROXIES = property != null && property.equals("true");
     }
 
+    /**
+     * Returns true if object {@code o} is a CodeProxy generated proxy.
+     */
     public static boolean isProxy(Object o) {
         Objects.requireNonNull(o, "Argument 'o' cannot be null!");
 
         return o.getClass().isAnnotationPresent(Proxy.class);
     }
 
+
+    /**
+     * Returns true if class of proxy object {@code o} is cached internally.
+     */
     public static boolean isCachedProxy(Object o) {
         Objects.requireNonNull(o, "Argument 'o' cannot be null!");
 
         return ProxyGenerator.CACHE.containsValue(o.getClass());
     }
 
+    /**
+     * Returns the invocation handler of the proxy {@code o}. This method uses reflection to fetch
+     * the invocation handler from {@code common fields}.
+     */
     public static InvocationHandler getInvocationHandler(Object o) {
 
         Objects.requireNonNull(o, "Argument 'o' cannot be null!");
@@ -136,6 +161,11 @@ public class ProxyGenerator {
         }
     }
 
+
+    /**
+     * Returns the proxy data of the proxy {@code o}. This method uses reflection to fetch the proxy
+     * data from {@code common fields}.
+     */
     public static ProxyData getProxyData(Object o) {
 
         Objects.requireNonNull(o, "Argument 'o' cannot be null!");
@@ -159,6 +189,12 @@ public class ProxyGenerator {
         }
     }
 
+    /**
+     * Creates the proxy instance from proxy data.
+     *
+     * @param argTypes Types of argument of constructor to invoke to construct the proxy instance.
+     * @param args     Arguments to pass to constructor.
+     */
     public static Object create(ProxyData proxyData, Class<?>[] argTypes, Object[] args) {
         try {
             Class<?> construct = ProxyGenerator.construct(proxyData);
@@ -177,6 +213,9 @@ public class ProxyGenerator {
         }
     }
 
+    /**
+     * Constructs proxy class from proxy data.
+     */
     private static Class<?> construct(ProxyData proxyData) {
 
         if (ProxyGenerator.CACHE.containsKey(proxyData))
@@ -208,7 +247,7 @@ public class ProxyGenerator {
         List<ConstructorDeclaration> constructors = new ArrayList<>();
         List<MethodDeclaration> methods = new ArrayList<>();
 
-        fields.addAll(ProxyGenerator.generateFields(proxyData));
+        fields.addAll(ProxyGenerator.generateProxyCommonFields());
 
         constructors.addAll(ProxyGenerator.generateConstructor(packagePrivate, proxyData));
 
@@ -222,7 +261,7 @@ public class ProxyGenerator {
 
         ClassDeclaration proxyClass = proxyClassBuilder.build();
 
-        BytecodeProcessor bytecodeGenerator = new BytecodeProcessor();
+        BytecodeGenerator bytecodeGenerator = new BytecodeGenerator();
 
         bytecodeGenerator.getOptions().set(BytecodeOptions.VISIT_LINES, VisitLineType.FOLLOW_CODE_SOURCE);
 
@@ -241,13 +280,22 @@ public class ProxyGenerator {
         return aClass;
     }
 
-    private static List<FieldDeclaration> generateFields(ProxyData proxyData) {
+    /**
+     * Generates a list with {@code common fields}.
+     */
+    private static List<FieldDeclaration> generateProxyCommonFields() {
         return Collections3.listOf(
                 PartFactory.fieldDec().modifiers(CodeModifier.PRIVATE, CodeModifier.FINAL).type(IH_TYPE).name(IH_NAME).build(),
                 PartFactory.fieldDec().modifiers(CodeModifier.PRIVATE, CodeModifier.FINAL).type(PD_TYPE).name(PD_NAME).build()
         );
     }
 
+    /**
+     * Generates constructors matching target class constructors with additional parameter at
+     * position 0, which is the {@link InvocationHandler} instance.
+     *
+     * @see ProxyGenerator
+     */
     private static List<ConstructorDeclaration> generateConstructor(boolean packagePrivate, ProxyData proxyData) {
         List<ConstructorDeclaration> constructors = new ArrayList<>();
 
@@ -285,7 +333,7 @@ public class ProxyGenerator {
 
                 }
 
-                // this.invocationHandler = invocationHandler;
+                // Define common fields value
                 constructorSource.add(Factories.setThisFieldValue(IH_TYPE, IH_NAME, Factories.accessVariable(IH_TYPE, IH_NAME)));
                 constructorSource.add(Factories.setThisFieldValue(PD_TYPE, PD_NAME, Util.constructProxyData(proxyData, IH_TYPE, IH_NAME)));
 
@@ -299,6 +347,13 @@ public class ProxyGenerator {
         return constructors;
     }
 
+    /**
+     * Generates methods which delegates calls to handler, and handle the result of invocation, if
+     * the result is instance of {@link InvokeSuper}, the super method is invoked through {@code
+     * invokespecial}
+     *
+     * @see ProxyGenerator
+     */
     private static Pair<List<FieldDeclaration>, List<MethodDeclaration>>
     generateMethods(boolean packagePrivate, ProxyData proxyData) {
 
@@ -339,7 +394,7 @@ public class ProxyGenerator {
 
         for (int i = 0; i < methodList.size(); i++) {
             FieldDeclaration fieldDeclaration = FieldDeclaration.Builder.builder()
-                    .modifiers(CodeModifier.PRIVATE, CodeModifier.FINAL)
+                    .modifiers(CodeModifier.PRIVATE, CodeModifier.STATIC, CodeModifier.FINAL)
                     .name("$Method$" + i)
                     .type(MethodInfo.class)
                     .value(Util.methodToReflectInvocation(methodList.get(i), lookupFieldRef))
@@ -355,7 +410,7 @@ public class ProxyGenerator {
 
             MutableCodeSource methodSource = (MutableCodeSource) methodDeclaration.getBody();
 
-            generateMethod(i, method, methodDeclaration, methodSource);
+            generateMethodBody(i, method, methodDeclaration, methodSource);
 
             methods.add(methodDeclaration);
         }
@@ -363,8 +418,16 @@ public class ProxyGenerator {
         return Pair.of(fields, methods);
     }
 
-
-    private static void generateMethod(int i, Method m, MethodDeclaration methodDeclaration, MutableCodeSource methodSource) {
+    /**
+     * Generates the body of proxy method.
+     *
+     * @param i                 Index of the method in the {@code method table} (concept), this is
+     *                          used to locate constant {@link MethodInfo}.
+     * @param m                 Original method to generate proxy body.
+     * @param methodDeclaration Declaration of the proxy method.
+     * @param methodSource      Source of the method. Instruction will be added to this source.
+     */
+    private static void generateMethodBody(int i, Method m, MethodDeclaration methodDeclaration, MutableCodeSource methodSource) {
 
         List<CodeParameter> parameterList = methodDeclaration.getParameters();
 
@@ -378,7 +441,7 @@ public class ProxyGenerator {
 
         List<? extends CodeInstruction> arguments = Collections3.listOf(
                 Access.THIS,
-                Factories.accessThisField(MethodInfo.class, "$Method$" + i),
+                Factories.accessStaticField(MethodInfo.class, "$Method$" + i),
                 argsArray,
                 Factories.accessThisField(PD_TYPE, PD_NAME)
         );
@@ -413,7 +476,7 @@ public class ProxyGenerator {
                 Factories.accessVariable(var), InvokeSuper.class
         )), PartFactory.source(invoke)));
 
-        if(m.getReturnType() != Void.TYPE) {
+        if (m.getReturnType() != Void.TYPE) {
             methodSource.add(Factories.returnValue(returnType, Factories.cast(Types.OBJECT, returnType, Factories.accessVariable(var))));
         } else {
             methodSource.add(Factories.returnVoid());
@@ -421,6 +484,9 @@ public class ProxyGenerator {
 
     }
 
+    /**
+     * Saves the proxy classes to {@code gen/codeproxy/} directory.
+     */
     private static void saveProxy(BytecodeClass bytecodeClass) {
         try {
 
@@ -452,6 +518,9 @@ public class ProxyGenerator {
         }
     }
 
+    /**
+     * Gets next unique proxy name.
+     */
     private static String getProxyName() {
         long proxy = PROXY_COUNT;
 
@@ -460,6 +529,9 @@ public class ProxyGenerator {
         return "$Proxy$CodeProxy_$" + proxy;
     }
 
+    /**
+     * Returns true if receiver contains package-private flag.
+     */
     public static boolean isPackagePrivate(int modifiers) {
         return !Modifier.isPublic(modifiers) && !Modifier.isProtected(modifiers) && !Modifier.isPrivate(modifiers);
     }
