@@ -534,7 +534,7 @@ public class ProxyGenerator {
             if (!SAVE_PROXIES)
                 return;
 
-            TypeDeclaration typeDeclaration = bytecodeClass.getType();
+            TypeDeclaration typeDeclaration = (TypeDeclaration) bytecodeClass.getDeclaration();
 
             String canonicalName = "gen/codeproxy/" + typeDeclaration.getCanonicalName();
 
