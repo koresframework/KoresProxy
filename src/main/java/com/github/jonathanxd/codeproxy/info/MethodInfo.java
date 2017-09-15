@@ -171,7 +171,7 @@ public final class MethodInfo {
         try {
             return this.lookup.findVirtual(target, this.name, MethodType.methodType(returnType, parameterTypesArray));
         } catch (NoSuchMethodException | IllegalAccessException e) {
-            throw new RethrowException(e);
+            throw RethrowException.rethrow(e);
         }
     }
 
@@ -201,7 +201,37 @@ public final class MethodInfo {
         try {
             return this.lookup.findSpecial(target, this.name, MethodType.methodType(returnType, parameterTypesArray), specialClass);
         } catch (NoSuchMethodException | IllegalAccessException e) {
-            throw new RethrowException(e);
+            throw RethrowException.rethrow(e);
+        }
+    }
+
+    /**
+     * Resolves the {@link MethodHandle} of this method in {@code target}.
+     *
+     * @param target Target class to find method.
+     * @return Resolved method handle, or null if cannot be found.
+     */
+    public @Nullable
+    MethodHandle resolveStatic(Class<?> target) {
+        try {
+            return this.lookup.findStatic(target, this.name, MethodType.methodType(returnType, parameterTypesArray));
+        } catch (NoSuchMethodException | IllegalAccessException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Resolves the {@link MethodHandle} of this method in {@code target}.
+     *
+     * @param target Target class to find method.
+     * @return Resolved method handle, or throw exception if cannot be found.
+     */
+    public @NotNull
+    MethodHandle resolveStaticOrFail(Class<?> target) {
+        try {
+            return this.lookup.findStatic(target, this.name, MethodType.methodType(returnType, parameterTypesArray));
+        } catch (NoSuchMethodException | IllegalAccessException e) {
+            throw RethrowException.rethrow(e);
         }
     }
 
@@ -241,7 +271,7 @@ public final class MethodInfo {
 
             return method;
         } catch (NoSuchMethodException e) {
-            throw new RethrowException(e);
+            throw RethrowException.rethrow(e);
         }
     }
 
