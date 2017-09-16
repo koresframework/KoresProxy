@@ -47,22 +47,25 @@ import com.github.jonathanxd.codeapi.bytecode.BytecodeOptions;
 import com.github.jonathanxd.codeapi.bytecode.VisitLineType;
 import com.github.jonathanxd.codeapi.bytecode.processor.BytecodeGenerator;
 import com.github.jonathanxd.codeapi.common.FieldRef;
+import com.github.jonathanxd.codeapi.common.Nothing;
+import com.github.jonathanxd.codeapi.common.VariableRef;
 import com.github.jonathanxd.codeapi.factory.Factories;
 import com.github.jonathanxd.codeapi.factory.InvocationFactory;
 import com.github.jonathanxd.codeapi.factory.PartFactory;
 import com.github.jonathanxd.codeapi.factory.VariableFactory;
 import com.github.jonathanxd.codeapi.literal.Literals;
 import com.github.jonathanxd.codeapi.util.Alias;
+import com.github.jonathanxd.codeapi.util.CodeTypes;
 import com.github.jonathanxd.codeapi.util.ImplicitCodeType;
 import com.github.jonathanxd.codeapi.util.conversion.ConversionsKt;
 import com.github.jonathanxd.codeproxy.InvokeSuper;
 import com.github.jonathanxd.codeproxy.ProxyData;
+import com.github.jonathanxd.codeproxy.gen.Custom;
 import com.github.jonathanxd.codeproxy.gen.CustomGen;
 import com.github.jonathanxd.codeproxy.gen.CustomHandlerGenerator;
 import com.github.jonathanxd.codeproxy.gen.GenEnv;
 import com.github.jonathanxd.codeproxy.handler.InvocationHandler;
 import com.github.jonathanxd.codeproxy.info.MethodInfo;
-import com.github.jonathanxd.iutils.array.ArrayUtils;
 import com.github.jonathanxd.iutils.collection.Collections3;
 import com.github.jonathanxd.iutils.exception.RethrowException;
 import com.github.jonathanxd.iutils.map.WeakValueHashMap;
@@ -82,6 +85,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -207,15 +211,33 @@ public class ProxyGenerator {
         Class<?> construct = ProxyGenerator.construct(proxyData);
 
         try {
-            Class[] types = new Class[]{InvocationHandler.class};
-            Object[] arguments = new Object[]{proxyData.getHandler()};
+            List<Class<?>> types = new ArrayList<>();
+            List<Object> arguments = new ArrayList<>();
 
-            if (args.length > 0) {
-                types = ArrayUtils.addAllToArray(types, argTypes);
-                arguments = ArrayUtils.addAllToArray(arguments, args);
+            Collections.addAll(types, argTypes);
+            Collections.addAll(arguments, args);
+
+            types.add(InvocationHandler.class);
+            arguments.add(proxyData.getHandler());
+
+            for (Custom custom : proxyData.getCustomView()) {
+                List<Custom.Property> collect = custom.getAdditionalProperties().stream()
+                        .filter(it -> !it.getInitialize().isPresent())
+                        .collect(Collectors.toList());
+
+                List<Object> valueForConstructorProperties = custom.getValueForConstructorProperties();
+
+                for (int i = 0; i < valueForConstructorProperties.size(); i++) {
+                    if (i < collect.size()) {
+                        types.add((Class) CodeTypes.getCodeType(collect.get(i).getSpec().getType())
+                                .getBindedDefaultResolver().resolve().getRight());
+                    }
+
+                    arguments.add(valueForConstructorProperties.get(i));
+                }
             }
 
-            return construct.getConstructor(types).newInstance(arguments);
+            return construct.getConstructor(types.toArray(new Class[0])).newInstance((Object[]) arguments.toArray(new Object[0]));
         } catch (Exception e) {
             throw RethrowException.rethrow(e);
         }
@@ -258,6 +280,7 @@ public class ProxyGenerator {
         List<MethodDeclaration> methods = new ArrayList<>();
 
         fields.addAll(ProxyGenerator.generateProxyCommonFields());
+        fields.addAll(ProxyGenerator.generateFields(proxyData));
 
         constructors.addAll(ProxyGenerator.generateConstructor(packagePrivate, proxyData));
 
@@ -273,7 +296,7 @@ public class ProxyGenerator {
 
         BytecodeGenerator bytecodeGenerator = new BytecodeGenerator();
 
-        bytecodeGenerator.getOptions().set(BytecodeOptions.VISIT_LINES, VisitLineType.FOLLOW_CODE_SOURCE);
+        bytecodeGenerator.getOptions().set(BytecodeOptions.VISIT_LINES, VisitLineType.GEN_LINE_INSTRUCTION);
 
         List<? extends BytecodeClass> gen = bytecodeGenerator.process(proxyClass);
 
@@ -301,6 +324,22 @@ public class ProxyGenerator {
     }
 
     /**
+     * Generates fields for properties.
+     */
+    private static List<FieldDeclaration> generateFields(ProxyData proxyData) {
+        return proxyData.getCustomView().stream()
+                .map(Custom::getAdditionalProperties)
+                .flatMap(Collection::stream)
+                .map(variableRef -> FieldDeclaration.Builder.builder()
+                        .modifiers(CodeModifier.PRIVATE, CodeModifier.FINAL)
+                        .type(variableRef.getSpec().getType())
+                        .name(Util.getAdditionalPropertyFieldName(variableRef.getSpec()))
+                        .value(variableRef.getInitialize().orElse(Nothing.INSTANCE))
+                        .build())
+                .collect(Collectors.toList());
+    }
+
+    /**
      * Generates constructors matching target class constructors with additional parameter at
      * position 0, which is the {@link InvocationHandler} instance.
      *
@@ -320,8 +359,21 @@ public class ProxyGenerator {
                 List<CodeParameter> parameters =
                         ConversionsKt.getCodeParameters(Arrays.asList(constructor.getParameters()));
 
+                final int originalParametersSize = parameters.size();
+
+                List<VariableRef> additionalProperties = proxyData.getCustomView().stream()
+                        .map(Custom::getAdditionalProperties)
+                        .flatMap(Collection::stream)
+                        .filter(property -> !property.getInitialize().isPresent())
+                        .map(Custom.Property::getSpec)
+                        .collect(Collectors.toList());
+
                 // InvocationHandler
-                parameters.add(0, Factories.parameter(IH_TYPE, IH_NAME));
+                parameters.add(Factories.parameter(IH_TYPE, IH_NAME));
+
+                for (VariableRef variableRef : additionalProperties) {
+                    parameters.add(Factories.parameter(variableRef.getType(), Util.getAdditionalPropertyFieldName(variableRef)));
+                }
 
                 MutableCodeSource constructorSource = MutableCodeSource.create();
 
@@ -331,10 +383,9 @@ public class ProxyGenerator {
                         .body(constructorSource)
                         .build();
 
-                if (parameters.size() > 1) {
-                    List<CodeInstruction> arguments = // 1 = Ignore IH parameter.
-                            ConversionsKt.getAccess(parameters.subList(1, parameters.size()));
-
+                if (parameters.size() > (1 + additionalProperties.size())) {
+                    List<CodeInstruction> arguments = // Ignore IH parameter and additional parameters.
+                            ConversionsKt.getAccess(parameters.subList(0, originalParametersSize));
 
                     constructorSource.add(InvocationFactory.invokeSuperConstructor(
                             superClass,
@@ -350,6 +401,14 @@ public class ProxyGenerator {
 
                 constructorSource.add(Factories.setThisFieldValue(PD_TYPE, PD_NAME,
                         Util.constructProxyData(proxyData, IH_TYPE, IH_NAME)));
+
+                for (VariableRef additionalProperty : additionalProperties) {
+                    constructorSource.add(Factories.setThisFieldValue(
+                            additionalProperty.getType(),
+                            Util.getAdditionalPropertyFieldName(additionalProperty),
+                            Factories.accessVariable(additionalProperty.getType(),
+                                    Util.getAdditionalPropertyFieldName(additionalProperty))));
+                }
 
                 constructors.add(constructorDeclaration);
             }
@@ -406,15 +465,29 @@ public class ProxyGenerator {
                         && !isPackagePrivate(method.getModifiers()))
                         || Modifier.isFinal(method.getModifiers())) && !(isPackagePrivate(method.getModifiers()) && !packagePrivate)).collect(Collectors.toList());
 
+        List<FieldDeclaration> cacheList = new ArrayList<>(methodList.size());
+
         for (int i = 0; i < methodList.size(); i++) {
+
+            Method m = methodList.get(i);
+            boolean shouldCache = true;
+
+            for (Custom c : proxyData.getCustomView()) {
+                if (!c.generateSpecCache(m)) {
+                    shouldCache = false;
+                    break;
+                }
+            }
+
             FieldDeclaration fieldDeclaration = FieldDeclaration.Builder.builder()
                     .modifiers(CodeModifier.PRIVATE, CodeModifier.STATIC, CodeModifier.FINAL)
                     .name("$Method$" + i)
                     .type(MethodInfo.class)
-                    .value(Util.methodToReflectInvocation(methodList.get(i), lookupFieldRef))
+                    .value(shouldCache ? Util.methodToReflectInvocation(m, lookupFieldRef) : Literals.NULL)
                     .build();
 
             fields.add(fieldDeclaration);
+            cacheList.add(fieldDeclaration);
         }
 
         for (int i = 0; i < methodList.size(); i++) {
@@ -424,7 +497,7 @@ public class ProxyGenerator {
 
             MutableCodeSource methodSource = (MutableCodeSource) methodDeclaration.getBody();
 
-            generateMethodBody(proxyData, i, method, methodDeclaration, methodSource);
+            generateMethodBody(proxyData, i, method, cacheList.get(i), methodDeclaration, methodSource);
 
             methods.add(methodDeclaration);
         }
@@ -440,11 +513,16 @@ public class ProxyGenerator {
      * @param i                 Index of the method in the {@code method table} (concept), this is
      *                          used to locate constant {@link MethodInfo}.
      * @param m                 Original method to generate proxy body.
+     * @param cacheField        Field with cached specification of {@code m}.
      * @param methodDeclaration Declaration of the proxy method.
      * @param methodSource      Source of the method. Instruction will be added to this source.
      */
     private static void generateMethodBody(ProxyData proxyData,
-                                           int i, Method m, MethodDeclaration methodDeclaration, MutableCodeSource methodSource) {
+                                           int i,
+                                           Method m,
+                                           FieldDeclaration cacheField,
+                                           MethodDeclaration methodDeclaration,
+                                           MutableCodeSource methodSource) {
 
         FieldAccess lookupAccess = Factories.accessStaticField(MethodHandles.Lookup.class, "lookup");
         FieldAccess methodInfoAccess = Factories.accessStaticField(MethodInfo.class, "$Method$" + i);
@@ -455,9 +533,16 @@ public class ProxyGenerator {
         boolean shouldGenInvk = true;
 
         int count = 0;
-        for (Class<? extends CustomHandlerGenerator> customHandlerClass : proxyData.getCustomHandlerGeneratorsView()) {
-            CustomHandlerGenerator customHandler = Util.getInstance(customHandlerClass);
-            GenEnv genEnv = new GenEnv(count, proxyData, m, methodDeclaration, lookupAccess, proxyDataAccess, invocationHandlerAccess, methodInfoAccess) {
+        for (CustomHandlerGenerator customHandler : proxyData.getCustomHandlerGeneratorsInstances()) {
+            GenEnv genEnv = new GenEnv(count,
+                    proxyData,
+                    m,
+                    methodDeclaration,
+                    lookupAccess,
+                    proxyDataAccess,
+                    invocationHandlerAccess,
+                    methodInfoAccess,
+                    cacheField) {
                 @Override
                 public void callCustomGenerators(@Nullable VariableDeclaration returnVariable, MutableCodeSource source) {
                     for (Class<? extends CustomGen> customGenClass : this.getProxyData().getCustomGeneratorsView()) {
@@ -490,9 +575,18 @@ public class ProxyGenerator {
                     Collections.singletonList(Literals.INT(parameterList.size())),
                     castArguments);
 
+            CodeInstruction access = methodInfoAccess;
+
+            if (cacheField.getValue().equals(Literals.NULL))
+                access = Util.methodToReflectInvocation(m, new FieldRef(
+                        lookupAccess.getLocalization(),
+                        lookupAccess.getTarget(),
+                        lookupAccess.getType(),
+                        lookupAccess.getName()));
+
             List<? extends CodeInstruction> arguments = Collections3.listOf(
                     Access.THIS,
-                    methodInfoAccess,
+                    access,
                     argsArray,
                     proxyDataAccess
             );

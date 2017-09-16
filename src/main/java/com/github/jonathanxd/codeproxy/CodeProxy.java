@@ -27,6 +27,7 @@
  */
 package com.github.jonathanxd.codeproxy;
 
+import com.github.jonathanxd.codeproxy.gen.Custom;
 import com.github.jonathanxd.codeproxy.gen.CustomGen;
 import com.github.jonathanxd.codeproxy.gen.CustomHandlerGenerator;
 import com.github.jonathanxd.codeproxy.handler.InvocationHandler;
@@ -40,6 +41,7 @@ public class CodeProxy {
 
     private static final List<Class<? extends CustomHandlerGenerator>> DEFAULT_CUSTOM_HANDLERS = new ArrayList<>();
     private static final List<Class<? extends CustomGen>> DEFAULT_CUSTOM_GENS = new ArrayList<>();
+    private static final List<Custom> DEFAULT_CUSTOMS = new ArrayList<>();
 
     static {
         DEFAULT_CUSTOM_GENS.add(InvokeSuper.class);
@@ -83,7 +85,8 @@ public class CodeProxy {
                                          Class<?>[] argTypes,
                                          Object[] args) {
         return (T) ProxyGenerator.create(new ProxyData(classLoader, interfaces, superClass, invocationHandler,
-                new ArrayList<>(DEFAULT_CUSTOM_HANDLERS), new ArrayList<>(DEFAULT_CUSTOM_GENS)), argTypes, args);
+                new ArrayList<>(DEFAULT_CUSTOM_HANDLERS), new ArrayList<>(DEFAULT_CUSTOM_GENS),
+                new ArrayList<>(DEFAULT_CUSTOMS)), argTypes, args);
     }
 
     /**

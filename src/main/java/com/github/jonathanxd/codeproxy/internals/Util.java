@@ -36,8 +36,8 @@ import com.github.jonathanxd.codeapi.base.CodeModifier;
 import com.github.jonathanxd.codeapi.base.MethodDeclaration;
 import com.github.jonathanxd.codeapi.base.MethodInvocation;
 import com.github.jonathanxd.codeapi.base.TypeSpec;
-import com.github.jonathanxd.codeapi.base.VariableAccess;
 import com.github.jonathanxd.codeapi.common.FieldRef;
+import com.github.jonathanxd.codeapi.common.VariableRef;
 import com.github.jonathanxd.codeapi.factory.Factories;
 import com.github.jonathanxd.codeapi.factory.InvocationFactory;
 import com.github.jonathanxd.codeapi.factory.PartFactory;
@@ -48,6 +48,7 @@ import com.github.jonathanxd.codeapi.util.CodePartUtil;
 import com.github.jonathanxd.codeapi.util.ImplicitCodeType;
 import com.github.jonathanxd.codeapi.util.conversion.ConversionsKt;
 import com.github.jonathanxd.codeproxy.ProxyData;
+import com.github.jonathanxd.codeproxy.gen.Custom;
 import com.github.jonathanxd.codeproxy.gen.CustomGen;
 import com.github.jonathanxd.codeproxy.gen.CustomHandlerGenerator;
 import com.github.jonathanxd.codeproxy.info.MethodInfo;
@@ -78,6 +79,12 @@ public class Util {
      */
     static CodeType LIST_OF_CUSTOM_GENERATORS = Generic.type(List.class).of(
             Generic.type(Class.class).of(Generic.wildcard().extends$(CustomGen.class)));
+
+    /**
+     * {@code List<? extends Custom>}
+     */
+    static CodeType LIST_OF_CUSTOMS = Generic.type(List.class).of(
+            Generic.wildcard().extends$(Custom.class));
 
     static CodeInstruction methodToReflectInvocation(Method m, FieldRef lookupFieldRef) {
         return InvocationFactory.invokeConstructor(MethodInfo.class,
@@ -121,6 +128,23 @@ public class Util {
         }).collect(Collectors.toList());
     }
 
+    public static String getAdditionalPropertyFieldName(VariableRef ref) {
+        return "additional$" + ref.getName();
+    }
+
+    public static Method getMethod(Class<?> c, String name, Class<?>... parameterTypes) throws NoSuchMethodException {
+        try {
+            return c.getDeclaredMethod(name, parameterTypes);
+        } catch (NoSuchMethodException e) {
+            try {
+                return c.getMethod(name, parameterTypes);
+            } catch (NoSuchMethodException e2) {
+                e.addSuppressed(e2);
+                throw e;
+            }
+        }
+    }
+
     static CodeInstruction constructProxyData(ProxyData proxyData,
                                               Type IH_TYPE,
                                               String IH_NAME) {
@@ -135,14 +159,16 @@ public class Util {
 
         return InvocationFactory.invokeConstructor(ProxyData.class,
                 Factories.constructorTypeSpec(ClassLoader.class, Types.CLASS.toArray(1), Types.CLASS, IH_TYPE,
-                        LIST_OF_CUSTOM_HANDLER_GENERATORS, LIST_OF_CUSTOM_GENERATORS),
+                        LIST_OF_CUSTOM_HANDLER_GENERATORS, LIST_OF_CUSTOM_GENERATORS,
+                        LIST_OF_CUSTOMS),
                 Collections3.listOf(
                         Util.getClassLoader_(),
                         arrayConstructor,
                         Literals.CLASS(proxyData.getSuperClass()),
                         Factories.accessThisField(IH_TYPE, IH_NAME),
                         Util.callListOf(CollectionsKt.map(proxyData.getCustomHandlerGeneratorsView(), Literals::CLASS)),
-                        Util.callListOf(CollectionsKt.map(proxyData.getCustomGeneratorsView(), Literals::CLASS))
+                        Util.callListOf(CollectionsKt.map(proxyData.getCustomGeneratorsView(), Literals::CLASS)),
+                        Util.callListOf(CollectionsKt.map(proxyData.getCustomView(), Custom::toInstruction))
                 )
         );
     }

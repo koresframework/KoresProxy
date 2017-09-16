@@ -28,18 +28,22 @@
 package test;
 
 import com.github.jonathanxd.codeapi.CodeSource;
+import com.github.jonathanxd.codeapi.base.InvokeType;
 import com.github.jonathanxd.codeapi.base.MethodDeclaration;
 import com.github.jonathanxd.codeapi.factory.Factories;
 import com.github.jonathanxd.codeapi.literal.Literals;
 import com.github.jonathanxd.codeproxy.CodeProxy;
 import com.github.jonathanxd.codeproxy.InvokeSuper;
 import com.github.jonathanxd.codeproxy.gen.CustomHandlerGenerator;
+import com.github.jonathanxd.codeproxy.gen.DirectInvocationCustom;
 import com.github.jonathanxd.codeproxy.gen.GenEnv;
 import com.github.jonathanxd.codeproxy.handler.InvocationHandler;
 
 import org.junit.Assert;
 
 import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
 
 public class CustomsTest {
 
@@ -69,6 +73,81 @@ public class CustomsTest {
         Assert.assertEquals("itf.v()", 50, itf.v());
         Assert.assertEquals("itf.x()", "Hello", itf.x());
 
+    }
+
+    @org.junit.Test
+    public void testStatic() {
+
+        InvocationHandler myHandler = (proxy, method, args, info) -> {
+            return InvokeSuper.INVOKE_SUPER;
+        };
+
+        Wip wip = CodeProxy.newProxyInstance(new Class[0], new Object[0], builder ->
+                builder.classLoader(this.getClass().getClassLoader())
+                        .addInterface(Wip.class)
+                        .addCustom(new DirectInvocationCustom.Static(Boom.class))
+                        .addCustomGenerator(InvokeSuper.class)
+                        .invocationHandler(myHandler));
+
+
+        wip.put("name", "WIP");
+        Assert.assertEquals("wip.getString(\"name\")", "WIP", wip.getString("name"));
+        Assert.assertEquals("wip.getInt(\"n\")", -1, wip.getInt("n"));
+
+    }
+
+    @org.junit.Test
+    public void testInstance() {
+
+        InvocationHandler myHandler = (proxy, method, args, info) -> {
+            return InvokeSuper.INVOKE_SUPER;
+        };
+
+        Wip wip = CodeProxy.newProxyInstance(new Class[0], new Object[0], builder ->
+                builder.classLoader(this.getClass().getClassLoader())
+                        .addInterface(Wip.class)
+                        .addCustom(new DirectInvocationCustom.Instance(new Boom()))
+                        .addCustomGenerator(InvokeSuper.class)
+                        .invocationHandler(myHandler));
+
+
+        wip.put("name", "WIP");
+        Assert.assertEquals("wip.getString(\"name\")", "WIP", wip.getString("name"));
+        Assert.assertEquals("wip.getInt(\"n\")", -1, wip.getInt("n"));
+
+    }
+
+    public static class Boom {
+        private final Map<String, Object> map = new HashMap<>();
+
+        public void put(String key, Object value) {
+            map.put(key, value);
+        }
+
+        public String getString(String key) {
+            Object o = map.get(key);
+
+            if (o instanceof String) {
+                return (String) o;
+            }
+
+            return "";
+        }
+    }
+
+    public interface Wip {
+
+        default void put(String key, Object value) {
+
+        }
+
+        default String getString(String key) {
+            return "";
+        }
+
+        default int getInt(String key) {
+            return -1;
+        }
     }
 
     public static class MyCustomHandler implements CustomHandlerGenerator {
