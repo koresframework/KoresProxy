@@ -4,7 +4,7 @@ plugins {
 }
 
 group 'com.github.jonathanxd'
-version '2.2.7-SNAPSHOT'
+version '2.2.8-SNAPSHOT'
 
 // Setup
 
@@ -36,9 +36,9 @@ repositories {
 
 allprojects{
     dependencies {
-        compile 'com.github.JonathanxD:CodeAPI:4.0.0.1-beta'
-        compile 'com.github.JonathanxD.CodeAPI-BytecodeWriter:CodeAPI-BytecodeWriter:4.0.0.2-beta-bytecode'
-        compile 'com.github.JonathanxD:JwIUtils:4.7.8'
+        compile 'com.github.JonathanxD:CodeAPI:4.0.0.9-beta'
+        compile 'com.github.JonathanxD.CodeAPI-BytecodeWriter:CodeAPI-BytecodeWriter:4.0.0.11-beta-bytecode'
+        compile 'com.github.JonathanxD:JwIUtils:4.9.38'
 
         testCompile group: 'junit', name:'junit', version: '4.12'
     }

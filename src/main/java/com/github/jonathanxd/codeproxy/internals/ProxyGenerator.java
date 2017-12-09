@@ -54,6 +54,7 @@ import com.github.jonathanxd.codeapi.factory.InvocationFactory;
 import com.github.jonathanxd.codeapi.factory.PartFactory;
 import com.github.jonathanxd.codeapi.factory.VariableFactory;
 import com.github.jonathanxd.codeapi.literal.Literals;
+import com.github.jonathanxd.codeapi.type.Generic;
 import com.github.jonathanxd.codeapi.util.Alias;
 import com.github.jonathanxd.codeapi.util.CodeTypes;
 import com.github.jonathanxd.codeapi.util.ImplicitCodeType;
@@ -116,6 +117,9 @@ public class ProxyGenerator {
     private static final String IH_NAME = "$InvocationHandler$CodeProxy";
     private static final Type IH_TYPE = InvocationHandler.class;
 
+    private static final String CS_NAME = "$Customs$CodeProxy";
+    private static final Type CS_TYPE = Generic.type(List.class).of(Custom.class);
+
     private static final Map<ProxyData, Class<?>> CACHE = Collections.synchronizedMap(new WeakValueHashMap<>());
 
     private static final boolean SAVE_PROXIES;
@@ -173,6 +177,32 @@ public class ProxyGenerator {
         }
     }
 
+    /**
+     * Returns the list with custom of proxy {@code o}.
+     */
+    public static List<Custom> getCustomList(Object o) {
+
+        Objects.requireNonNull(o, "Argument 'o' cannot be null!");
+
+        if (!ProxyGenerator.isProxy(o))
+            throw new IllegalArgumentException("Object '" + o + "' isn't a Proxy!");
+
+        Class<?> aClass = o.getClass();
+
+        try {
+            Field declaredField = aClass.getDeclaredField(CS_NAME);
+
+            if (!declaredField.getType().equals(List.class))
+                throw new IllegalStateException("Illegal field type: '" + declaredField.getType() + "'!");
+
+            declaredField.setAccessible(true);
+
+            return (List<Custom>) declaredField.get(o);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
 
     /**
      * Returns the proxy data of the proxy {@code o}. This method uses reflection to fetch the proxy
@@ -218,7 +248,9 @@ public class ProxyGenerator {
             Collections.addAll(arguments, args);
 
             types.add(InvocationHandler.class);
+            types.add(ProxyData.class);
             arguments.add(proxyData.getHandler());
+            arguments.add(proxyData);
 
             for (Custom custom : proxyData.getCustomView()) {
                 List<Custom.Property> collect = custom.getAdditionalProperties().stream()
@@ -260,10 +292,10 @@ public class ProxyGenerator {
         String package_;
 
         if (ImplicitCodeType.compareTo(superType, Types.OBJECT) == 0
-                || ImplicitCodeType.getPackageName(superType).startsWith("java.")) {
+                || ImplicitCodeType.getPackageName(superType).startsWith("java.")
+                || Util.useModulesRules()) {
             package_ = "com.github.jonathanxd.codeproxy.generated";
         } else {
-            // Probably will not work in Java 9 (or 10+ if accessible by default purpose is accepted)
             package_ = ImplicitCodeType.getPackageName(superType);
             packagePrivate = true;
         }
@@ -300,13 +332,11 @@ public class ProxyGenerator {
 
         List<? extends BytecodeClass> gen = bytecodeGenerator.process(proxyClass);
 
-        byte[] bytes = gen.get(0).getBytecode();
-
         for (BytecodeClass bytecodeClass : gen) {
             ProxyGenerator.saveProxy(bytecodeClass);
         }
 
-        Class<?> aClass = Util.injectIntoClassLoader(proxyData.getClassLoader(), proxyClass.getCanonicalName(), bytes);
+        Class<?> aClass = Util.tryLoad(proxyData.getClassLoader(), gen.get(0));
 
         ProxyGenerator.CACHE.put(proxyData, aClass);
 
@@ -319,7 +349,8 @@ public class ProxyGenerator {
     private static List<FieldDeclaration> generateProxyCommonFields() {
         return Collections3.listOf(
                 PartFactory.fieldDec().modifiers(CodeModifier.PRIVATE, CodeModifier.FINAL).type(IH_TYPE).name(IH_NAME).build(),
-                PartFactory.fieldDec().modifiers(CodeModifier.PRIVATE, CodeModifier.FINAL).type(PD_TYPE).name(PD_NAME).build()
+                PartFactory.fieldDec().modifiers(CodeModifier.PRIVATE, CodeModifier.FINAL).type(PD_TYPE).name(PD_NAME).build()/*,
+                PartFactory.fieldDec().modifiers(CodeModifier.PRIVATE, CodeModifier.FINAL).type(CS_TYPE).name(CS_NAME).build()*/
         );
     }
 
@@ -370,6 +401,7 @@ public class ProxyGenerator {
 
                 // InvocationHandler
                 parameters.add(Factories.parameter(IH_TYPE, IH_NAME));
+                parameters.add(Factories.parameter(PD_TYPE, PD_NAME));
 
                 for (VariableRef variableRef : additionalProperties) {
                     parameters.add(Factories.parameter(variableRef.getType(), Util.getAdditionalPropertyFieldName(variableRef)));
@@ -399,8 +431,12 @@ public class ProxyGenerator {
                 constructorSource.add(Factories.setThisFieldValue(IH_TYPE, IH_NAME,
                         Factories.accessVariable(IH_TYPE, IH_NAME)));
 
+                /*constructorSource.add(Factories.setThisFieldValue(CS_TYPE, CS_NAME,
+                        Factories.accessVariable(CS_TYPE, CS_NAME)));*/
+
                 constructorSource.add(Factories.setThisFieldValue(PD_TYPE, PD_NAME,
-                        Util.constructProxyData(proxyData, IH_TYPE, IH_NAME)));
+                        Factories.accessVariable(PD_TYPE, PD_NAME)));
+                        //Util.constructProxyData(proxyData, IH_TYPE, IH_NAME, CS_TYPE, CS_NAME)));
 
                 for (VariableRef additionalProperty : additionalProperties) {
                     constructorSource.add(Factories.setThisFieldValue(
@@ -486,7 +522,9 @@ public class ProxyGenerator {
                     .value(shouldCache ? Util.methodToReflectInvocation(m, lookupFieldRef) : Literals.NULL)
                     .build();
 
-            fields.add(fieldDeclaration);
+            if (shouldCache)
+                fields.add(fieldDeclaration);
+
             cacheList.add(fieldDeclaration);
         }
 
@@ -523,7 +561,6 @@ public class ProxyGenerator {
                                            FieldDeclaration cacheField,
                                            MethodDeclaration methodDeclaration,
                                            MutableCodeSource methodSource) {
-
         FieldAccess lookupAccess = Factories.accessStaticField(MethodHandles.Lookup.class, "lookup");
         FieldAccess methodInfoAccess = Factories.accessStaticField(MethodInfo.class, "$Method$" + i);
 

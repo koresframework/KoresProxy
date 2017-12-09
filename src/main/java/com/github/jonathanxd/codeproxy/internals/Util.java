@@ -35,7 +35,10 @@ import com.github.jonathanxd.codeapi.base.ArrayConstructor;
 import com.github.jonathanxd.codeapi.base.CodeModifier;
 import com.github.jonathanxd.codeapi.base.MethodDeclaration;
 import com.github.jonathanxd.codeapi.base.MethodInvocation;
+import com.github.jonathanxd.codeapi.base.TypeDeclaration;
 import com.github.jonathanxd.codeapi.base.TypeSpec;
+import com.github.jonathanxd.codeapi.bytecode.BytecodeClass;
+import com.github.jonathanxd.codeapi.bytecode.classloader.CodeClassLoader;
 import com.github.jonathanxd.codeapi.common.FieldRef;
 import com.github.jonathanxd.codeapi.common.VariableRef;
 import com.github.jonathanxd.codeapi.factory.Factories;
@@ -54,6 +57,8 @@ import com.github.jonathanxd.codeproxy.gen.CustomHandlerGenerator;
 import com.github.jonathanxd.codeproxy.info.MethodInfo;
 import com.github.jonathanxd.iutils.collection.Collections3;
 import com.github.jonathanxd.iutils.exception.RethrowException;
+import com.github.jonathanxd.iutils.object.Either;
+import com.github.jonathanxd.iutils.object.Try;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -67,6 +72,13 @@ import java.util.stream.Collectors;
 import kotlin.collections.CollectionsKt;
 
 public class Util {
+
+    private static final boolean IGNORE_JAVA_MODULE_RULES;
+
+    static {
+        IGNORE_JAVA_MODULE_RULES =
+                Boolean.parseBoolean(System.getProperties().getProperty("codeproxy.ignore_module_rules", "false"));
+    }
 
     /**
      * {@code List<Class<? extends CustomHandlerGenerator>>}
@@ -146,8 +158,10 @@ public class Util {
     }
 
     static CodeInstruction constructProxyData(ProxyData proxyData,
-                                              Type IH_TYPE,
-                                              String IH_NAME) {
+                                              Type ihType,
+                                              String ihName,
+                                              Type csType,
+                                              String csName) {
 
         List<? extends CodeInstruction> arguments =
                 Arrays.stream(proxyData.getInterfaces()).map(Literals::CLASS).collect(Collectors.toList());
@@ -158,17 +172,17 @@ public class Util {
                 arguments);
 
         return InvocationFactory.invokeConstructor(ProxyData.class,
-                Factories.constructorTypeSpec(ClassLoader.class, Types.CLASS.toArray(1), Types.CLASS, IH_TYPE,
+                Factories.constructorTypeSpec(ClassLoader.class, Types.CLASS.toArray(1), Types.CLASS, ihType,
                         LIST_OF_CUSTOM_HANDLER_GENERATORS, LIST_OF_CUSTOM_GENERATORS,
                         LIST_OF_CUSTOMS),
                 Collections3.listOf(
                         Util.getClassLoader_(),
                         arrayConstructor,
                         Literals.CLASS(proxyData.getSuperClass()),
-                        Factories.accessThisField(IH_TYPE, IH_NAME),
+                        Factories.accessThisField(ihType, ihName),
                         Util.callListOf(CollectionsKt.map(proxyData.getCustomHandlerGeneratorsView(), Literals::CLASS)),
                         Util.callListOf(CollectionsKt.map(proxyData.getCustomGeneratorsView(), Literals::CLASS)),
-                        Util.callListOf(CollectionsKt.map(proxyData.getCustomView(), Custom::toInstruction))
+                        Util.callUnmod(Factories.accessThisField(csType, csName))
                 )
         );
     }
@@ -182,6 +196,13 @@ public class Util {
                                 Collections3.listOf(Literals.INT(lst.size())),
                                 lst)
                 ));
+    }
+
+    private static CodeInstruction callUnmod(CodeInstruction insn) {
+        return InvocationFactory.invokeStatic(Collections.class,
+                "unmodifiableList",
+                new TypeSpec(List.class, Collections3.listOf(List.class)),
+                Collections3.listOf(insn));
     }
 
     private static MethodInvocation getClassLoader_() {
@@ -199,7 +220,52 @@ public class Util {
         );
     }
 
-    static Class<?> injectIntoClassLoader(ClassLoader classLoader, String name, byte[] bytes) {
+    public static boolean isJava9OrSuperior() {
+        Either<Exception, Integer> tryVersion =
+                Try.TryEx(() -> Integer.parseInt(System.getProperty("java.version")));
+
+        return tryVersion.isRight() && tryVersion.getRight() > 9
+                || Try.TryEx(() -> Class.forName("java.lang.Module")).isRight();
+
+    }
+
+    public static boolean useModulesRules() {
+        return !Util.IGNORE_JAVA_MODULE_RULES && Util.isJava9OrSuperior();
+    }
+
+    static Class<?> tryLoad(ClassLoader classLoader, BytecodeClass bytecodeClass) {
+        if (!(bytecodeClass.getDeclaration() instanceof TypeDeclaration))
+            throw new IllegalArgumentException("Non-TypeDeclaration loading is not supported yet. BytecodeClass: " + bytecodeClass);
+
+        TypeDeclaration decl = (TypeDeclaration) bytecodeClass.getDeclaration();
+        String type = decl.getType();
+        byte[] bytes = bytecodeClass.getBytecode();
+
+        Class<?> aClass = null;
+        if (!Util.useModulesRules())
+            aClass = Util.tryInjectIntoClassLoaderPrivate(classLoader, type, bytes);
+
+        if (aClass == null)
+            aClass = Util.tryInjectIntoClassLoaderPublic(classLoader, type, bytes);
+
+        if (aClass == null)
+            return Util.defineWithNew(classLoader, bytecodeClass);
+
+        return aClass;
+    }
+
+    private static Class<?> tryInjectIntoClassLoaderPublic(ClassLoader classLoader, String name, byte[] bytes) {
+        try {
+            Method defineClass = classLoader.getClass()
+                    .getMethod("defineClass", String.class, byte[].class, int.class, int.class);
+
+            return (Class<?>) defineClass.invoke(classLoader, name, bytes, 0, bytes.length);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static Class<?> tryInjectIntoClassLoaderPrivate(ClassLoader classLoader, String name, byte[] bytes) {
         try {
             Method defineClass = ClassLoader.class.getDeclaredMethod("defineClass", String.class, byte[].class, int.class, int.class);
 
@@ -207,8 +273,13 @@ public class Util {
 
             return (Class<?>) defineClass.invoke(classLoader, name, bytes, 0, bytes.length);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            return null;
         }
+    }
+
+    private static Class<?> defineWithNew(ClassLoader parent, BytecodeClass bytecodeClass) {
+        CodeClassLoader cl = new CodeClassLoader(parent);
+        return cl.define(bytecodeClass);
     }
 
     private static boolean isEqual(Method o1, Method o2) {

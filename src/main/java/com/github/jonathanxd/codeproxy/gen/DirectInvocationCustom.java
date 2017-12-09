@@ -32,10 +32,13 @@ import com.github.jonathanxd.codeapi.CodeSource;
 import com.github.jonathanxd.codeapi.base.Access;
 import com.github.jonathanxd.codeapi.base.InvokeType;
 import com.github.jonathanxd.codeapi.base.MethodDeclaration;
+import com.github.jonathanxd.codeapi.base.VariableDeclaration;
 import com.github.jonathanxd.codeapi.common.VariableRef;
 import com.github.jonathanxd.codeapi.factory.Factories;
 import com.github.jonathanxd.codeapi.factory.InvocationFactory;
+import com.github.jonathanxd.codeapi.factory.VariableFactory;
 import com.github.jonathanxd.codeapi.literal.Literals;
+import com.github.jonathanxd.codeapi.util.ImplicitCodeType;
 import com.github.jonathanxd.codeapi.util.conversion.ConversionsKt;
 import com.github.jonathanxd.codeproxy.internals.Util;
 import com.github.jonathanxd.iutils.collection.Collections3;
@@ -43,8 +46,13 @@ import com.github.jonathanxd.iutils.collection.Collections3;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
+import java.util.function.Function;
+import java.util.function.IntFunction;
+import java.util.function.ToIntFunction;
 
 /**
  * Generates direct invocation to a target, may be to instance or to a class. To a class the
@@ -95,12 +103,12 @@ public interface DirectInvocationCustom extends Custom {
             return Collections3.listOf(gen);
         }
 
-        @Override
+        /*@Override
         public CodeInstruction toInstruction() {
             return InvocationFactory.invokeConstructor(Static.class,
                     Factories.constructorTypeSpec(Class.class),
                     Collections.singletonList(Literals.TYPE(this.getTarget())));
-        }
+        }*/
 
         @Override
         public int hashCode() {
@@ -177,8 +185,7 @@ public interface DirectInvocationCustom extends Custom {
 
             try {
                 Util.getMethod(this.getTarget().getClass(), m.getName(), m.getParameterTypes());
-
-                return true;
+                return false;
             } catch (NoSuchMethodException ignored) {
             }
 
@@ -190,7 +197,7 @@ public interface DirectInvocationCustom extends Custom {
             return Collections3.listOf(gen);
         }
 
-        @Override
+        /*@Override
         public CodeInstruction toInstruction() {
 
             VariableRef fprop1 = this.getAdditionalProperties().get(0).getSpec();
@@ -202,7 +209,7 @@ public interface DirectInvocationCustom extends Custom {
                                     Util.getAdditionalPropertyFieldName(fprop1))
                     )
             );
-        }
+        }*/
 
         @Override
         public int hashCode() {
@@ -265,4 +272,203 @@ public interface DirectInvocationCustom extends Custom {
             }
         }
     }
+
+    class MultiInstanceResolved implements DirectInvocationCustom {
+
+        /**
+         * Instances to invoke.
+         */
+        private final List<Object> targets;
+
+        /**
+         * Resolver of the position of the target instance to invoke based on a method.
+         */
+        private final ToIntFunction<Method> targetResolver;
+
+        /**
+         * Resolver of the base type of a instance to invoke.
+         */
+        private final IntFunction<Class<?>> typeResolver;
+        private final Gen gen = new Gen();
+
+        public MultiInstanceResolved(List<Object> targets,
+                                     ToIntFunction<Method> targetResolver,
+                                     IntFunction<Class<?>> typeResolver) {
+            this.targets = Collections.unmodifiableList(new ArrayList<>(targets));
+            this.targetResolver = targetResolver;
+            this.typeResolver = typeResolver;
+        }
+
+        public List<Object> getTargets() {
+            return this.targets;
+        }
+
+        public ToIntFunction<Method> getTargetResolver() {
+            return this.targetResolver;
+        }
+
+        public IntFunction<Class<?>> getTypeResolver() {
+            return this.typeResolver;
+        }
+
+        @Override
+        public List<Property> getAdditionalProperties() {
+            return Collections3.listOf(
+                    new Property(new VariableRef(List.class, "targets"), null),
+                    new Property(new VariableRef(ToIntFunction.class, "targetResolver"), null),
+                    new Property(new VariableRef(IntFunction.class, "typeResolver"), null)
+            );
+        }
+
+        @Override
+        public List<Object> getValueForConstructorProperties() {
+            return Collections3.listOf(
+                    this.getTargets(),
+                    this.getTargetResolver(),
+                    this.getTypeResolver()
+            );
+        }
+
+        @Override
+        public boolean generateSpecCache(Method m) {
+
+            try {
+                int target = this.getTargetResolver().applyAsInt(m);
+
+                List<Object> targets = this.getTargets();
+
+                if (target > -1 && target < targets.size()) {
+                    Class<?> typeCl = MultiInstanceResolved.this.getTypeResolver().apply(target);
+
+                    Util.getMethod(typeCl, m.getName(), m.getParameterTypes());
+                    return false;
+                } else {
+                    return true;
+                }
+            } catch (NoSuchMethodException ignored) {
+            }
+
+            return true;
+        }
+
+        @Override
+        public List<CustomHandlerGenerator> getCustomHandlerGenerators() {
+            return Collections3.listOf(gen);
+        }
+
+        /*@Override
+        public CodeInstruction toInstruction() {
+
+            VariableRef fprop1 = this.getAdditionalProperties().get(0).getSpec();
+            VariableRef fprop2 = this.getAdditionalProperties().get(1).getSpec();
+            VariableRef fprop3 = this.getAdditionalProperties().get(2).getSpec();
+
+            return InvocationFactory.invokeConstructor(MultiInstanceResolved.class,
+                    Factories.constructorTypeSpec(List.class, ToIntFunction.class, IntFunction.class),
+                    Collections3.listOf(
+                            Factories.accessVariable(fprop1.getType(),
+                                    Util.getAdditionalPropertyFieldName(fprop1)),
+                            Factories.accessVariable(fprop2.getType(),
+                                    Util.getAdditionalPropertyFieldName(fprop2)),
+                            Factories.accessVariable(fprop3.getType(),
+                                    Util.getAdditionalPropertyFieldName(fprop3))
+                    )
+            );
+        }*/
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(this.getTargets(), this.getTargetResolver(), this.getTypeResolver());
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj instanceof MultiInstanceResolved
+                    && ((MultiInstanceResolved) obj).getTargets().equals(this.getTargets())
+                    && ((MultiInstanceResolved) obj).getTargetResolver().equals(this.getTargetResolver())
+                    && ((MultiInstanceResolved) obj).getTypeResolver().equals(this.getTypeResolver());
+
+        }
+
+        class Gen implements CustomHandlerGenerator {
+
+            @Override
+            public CodeSource handle(Method target, MethodDeclaration methodDeclaration, GenEnv env) {
+                try {
+                    List<Object> targets = MultiInstanceResolved.this.getTargets();
+                    ToIntFunction<Method> targetResolver = MultiInstanceResolved.this.getTargetResolver();
+
+                    int i = targetResolver.applyAsInt(target);
+
+                    if (i < 0 || i > targets.size()) {
+                        return CodeSource.empty();
+                    }
+
+                    Class<?> typeCl = MultiInstanceResolved.this.getTypeResolver().apply(i);
+
+                    Object targetObj = targets.get(i);
+
+                    Method method = Util.getMethod(targetObj.getClass(),
+                            target.getName(), target.getParameterTypes());
+
+                    VariableRef fprop1 = MultiInstanceResolved.this.getAdditionalProperties().get(0).getSpec();
+
+                    CodeInstruction access = InvocationFactory.invokeInterface(List.class,
+                            Factories.accessThisField(fprop1.getType(), Util.getAdditionalPropertyFieldName(fprop1)),
+                            "get",
+                            Factories.typeSpec(Object.class, Integer.TYPE),
+                            Collections.singletonList(Literals.INT(i)));
+
+                    VariableDeclaration varDec = VariableFactory.variable(Object.class, "target$f", access);
+
+                    env.setMayProceed(false);
+                    env.setInvokeHandler(false);
+
+                    Type type = typeCl; //targetObj.getClass();//fprop1.getType();
+                    InvokeType invokeType;
+
+                    if (!targetObj.getClass().isSynthetic())
+                        type = targetObj.getClass();
+
+                    if (Modifier.isStatic(method.getModifiers())) {
+                        invokeType = InvokeType.INVOKE_STATIC;
+                    } else if (method.getDeclaringClass().isInterface()) {
+                        invokeType = InvokeType.INVOKE_INTERFACE;
+                        if (!method.getDeclaringClass().isSynthetic())
+                            type = method.getDeclaringClass();
+                    } else if (Modifier.isPrivate(method.getModifiers())) {
+                        invokeType = InvokeType.INVOKE_SPECIAL;
+                        if (!method.getDeclaringClass().isSynthetic())
+                            type = method.getDeclaringClass();
+                    } else {
+                        invokeType = InvokeType.INVOKE_VIRTUAL;
+                    }
+
+                    if (ImplicitCodeType.isInterface(type) && invokeType != InvokeType.INVOKE_STATIC) {
+                        invokeType = InvokeType.INVOKE_INTERFACE;
+                    }
+
+                    return CodeSource.fromVarArgs(
+                            varDec,
+                            Factories.returnValue(target.getReturnType(),
+                            InvocationFactory.invoke(invokeType,
+                                    type,
+                                    invokeType.isStatic() ? Access.STATIC
+                                            : Factories.accessVariable(varDec),
+                                    method.getName(),
+                                    ConversionsKt.getTypeSpec(method),
+                                    ConversionsKt.getAccess(methodDeclaration.getParameters())
+                            )
+                    ));
+
+
+                } catch (NoSuchMethodException ignored) {
+
+                }
+
+                return CodeSource.empty();
+            }
+        }
+    }
+
 }

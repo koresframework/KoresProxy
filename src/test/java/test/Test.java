@@ -28,6 +28,7 @@
 package test;
 
 import com.github.jonathanxd.codeproxy.CodeProxy;
+import com.github.jonathanxd.codeproxy.internals.Util;
 
 import org.junit.Assert;
 
@@ -74,7 +75,15 @@ public class Test {
 
         Assert.assertEquals("apb.apb()", "OI", apb.apb());
         Assert.assertEquals("apb.getStr()", "XS", apb.getStr());
-        Assert.assertEquals("apb.packagePrivate()", "Oops", apb.packagePrivate());
+
+        if (Util.useModulesRules()) {
+            Assert.assertEquals("apb.packagePrivate()", "VVS", apb.packagePrivate());
+        } else {
+            // This does not work in Java 9 because Util does not use
+            // Private class loader methods to inject the class
+            // And does not declared in the same package because it is not allowed in Java 9
+            Assert.assertEquals("apb.packagePrivate()", "Oops", apb.packagePrivate());
+        }
         Assert.assertEquals("apb.r()", myClass.r(0), apb.r(0));
         Assert.assertEquals("hashCode", 7, apb.hashCode());
         Assert.assertTrue("isProxy", CodeProxy.isProxy(apb));
