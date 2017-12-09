@@ -103,13 +103,6 @@ public interface DirectInvocationCustom extends Custom {
             return Collections3.listOf(gen);
         }
 
-        /*@Override
-        public CodeInstruction toInstruction() {
-            return InvocationFactory.invokeConstructor(Static.class,
-                    Factories.constructorTypeSpec(Class.class),
-                    Collections.singletonList(Literals.TYPE(this.getTarget())));
-        }*/
-
         @Override
         public int hashCode() {
             return this.getTarget().hashCode();
@@ -196,20 +189,6 @@ public interface DirectInvocationCustom extends Custom {
         public List<CustomHandlerGenerator> getCustomHandlerGenerators() {
             return Collections3.listOf(gen);
         }
-
-        /*@Override
-        public CodeInstruction toInstruction() {
-
-            VariableRef fprop1 = this.getAdditionalProperties().get(0).getSpec();
-
-            return InvocationFactory.invokeConstructor(Instance.class,
-                    Factories.constructorTypeSpec(Object.class),
-                    Collections3.listOf(
-                            Factories.accessVariable(fprop1.getType(),
-                                    Util.getAdditionalPropertyFieldName(fprop1))
-                    )
-            );
-        }*/
 
         @Override
         public int hashCode() {
@@ -355,26 +334,6 @@ public interface DirectInvocationCustom extends Custom {
         public List<CustomHandlerGenerator> getCustomHandlerGenerators() {
             return Collections3.listOf(gen);
         }
-
-        /*@Override
-        public CodeInstruction toInstruction() {
-
-            VariableRef fprop1 = this.getAdditionalProperties().get(0).getSpec();
-            VariableRef fprop2 = this.getAdditionalProperties().get(1).getSpec();
-            VariableRef fprop3 = this.getAdditionalProperties().get(2).getSpec();
-
-            return InvocationFactory.invokeConstructor(MultiInstanceResolved.class,
-                    Factories.constructorTypeSpec(List.class, ToIntFunction.class, IntFunction.class),
-                    Collections3.listOf(
-                            Factories.accessVariable(fprop1.getType(),
-                                    Util.getAdditionalPropertyFieldName(fprop1)),
-                            Factories.accessVariable(fprop2.getType(),
-                                    Util.getAdditionalPropertyFieldName(fprop2)),
-                            Factories.accessVariable(fprop3.getType(),
-                                    Util.getAdditionalPropertyFieldName(fprop3))
-                    )
-            );
-        }*/
 
         @Override
         public int hashCode() {

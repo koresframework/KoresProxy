@@ -90,28 +90,6 @@ public interface Custom {
     }
 
     /**
-     * Return instruction representing the construction of this instance.
-     *
-     * @return Instruction representing the construction of this instance.
-     */
-/*
-    default CodeInstruction toInstruction() {
-        List<Property> list = this.getAdditionalProperties();
-        List<Type> types = CollectionsKt.map(list, p -> p.getSpec().getVariableType());
-
-        List<CodeInstruction> arguments = CollectionsKt.map(list, p -> Factories.accessVariable(
-                p.getSpec().getType(),
-                Util.getAdditionalPropertyFieldName(p.getSpec())
-        ));
-
-        return InvocationFactory.invokeConstructor(this.getClass(),
-                TypeSpec.Builder.builder().returnType(Void.TYPE).parameterTypes(types).build(),
-                arguments
-        );
-    }
-*/
-
-    /**
      * Property
      */
     class Property {

@@ -117,9 +117,6 @@ public class ProxyGenerator {
     private static final String IH_NAME = "$InvocationHandler$CodeProxy";
     private static final Type IH_TYPE = InvocationHandler.class;
 
-    private static final String CS_NAME = "$Customs$CodeProxy";
-    private static final Type CS_TYPE = Generic.type(List.class).of(Custom.class);
-
     private static final Map<ProxyData, Class<?>> CACHE = Collections.synchronizedMap(new WeakValueHashMap<>());
 
     private static final boolean SAVE_PROXIES;
@@ -176,33 +173,6 @@ public class ProxyGenerator {
             throw new RuntimeException(e);
         }
     }
-
-    /**
-     * Returns the list with custom of proxy {@code o}.
-     */
-    public static List<Custom> getCustomList(Object o) {
-
-        Objects.requireNonNull(o, "Argument 'o' cannot be null!");
-
-        if (!ProxyGenerator.isProxy(o))
-            throw new IllegalArgumentException("Object '" + o + "' isn't a Proxy!");
-
-        Class<?> aClass = o.getClass();
-
-        try {
-            Field declaredField = aClass.getDeclaredField(CS_NAME);
-
-            if (!declaredField.getType().equals(List.class))
-                throw new IllegalStateException("Illegal field type: '" + declaredField.getType() + "'!");
-
-            declaredField.setAccessible(true);
-
-            return (List<Custom>) declaredField.get(o);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
 
     /**
      * Returns the proxy data of the proxy {@code o}. This method uses reflection to fetch the proxy
@@ -349,8 +319,7 @@ public class ProxyGenerator {
     private static List<FieldDeclaration> generateProxyCommonFields() {
         return Collections3.listOf(
                 PartFactory.fieldDec().modifiers(CodeModifier.PRIVATE, CodeModifier.FINAL).type(IH_TYPE).name(IH_NAME).build(),
-                PartFactory.fieldDec().modifiers(CodeModifier.PRIVATE, CodeModifier.FINAL).type(PD_TYPE).name(PD_NAME).build()/*,
-                PartFactory.fieldDec().modifiers(CodeModifier.PRIVATE, CodeModifier.FINAL).type(CS_TYPE).name(CS_NAME).build()*/
+                PartFactory.fieldDec().modifiers(CodeModifier.PRIVATE, CodeModifier.FINAL).type(PD_TYPE).name(PD_NAME).build()
         );
     }
 
@@ -431,12 +400,9 @@ public class ProxyGenerator {
                 constructorSource.add(Factories.setThisFieldValue(IH_TYPE, IH_NAME,
                         Factories.accessVariable(IH_TYPE, IH_NAME)));
 
-                /*constructorSource.add(Factories.setThisFieldValue(CS_TYPE, CS_NAME,
-                        Factories.accessVariable(CS_TYPE, CS_NAME)));*/
-
                 constructorSource.add(Factories.setThisFieldValue(PD_TYPE, PD_NAME,
                         Factories.accessVariable(PD_TYPE, PD_NAME)));
-                        //Util.constructProxyData(proxyData, IH_TYPE, IH_NAME, CS_TYPE, CS_NAME)));
+
 
                 for (VariableRef additionalProperty : additionalProperties) {
                     constructorSource.add(Factories.setThisFieldValue(
