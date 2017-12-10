@@ -31,12 +31,13 @@ import com.github.jonathanxd.codeproxy.CodeProxy;
 import com.github.jonathanxd.codeproxy.internals.Util;
 
 import org.junit.Assert;
+import org.junit.Test;
 
 import java.lang.reflect.Field;
 
-public class Test {
+public class ProxyTest {
 
-    @org.junit.Test
+    @Test
     public void test() {
 
         MyClass myClass = new MyClass("OR");
