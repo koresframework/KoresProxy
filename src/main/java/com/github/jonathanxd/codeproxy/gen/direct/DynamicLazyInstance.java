@@ -32,6 +32,7 @@ import com.github.jonathanxd.codeapi.CodeSource;
 import com.github.jonathanxd.codeapi.base.Access;
 import com.github.jonathanxd.codeapi.base.InvokeType;
 import com.github.jonathanxd.codeapi.base.MethodDeclaration;
+import com.github.jonathanxd.codeapi.common.DynamicMethodSpec;
 import com.github.jonathanxd.codeapi.common.VariableRef;
 import com.github.jonathanxd.codeapi.factory.DynamicInvocationFactory;
 import com.github.jonathanxd.codeapi.factory.Factories;
@@ -154,20 +155,16 @@ public class DynamicLazyInstance implements DirectInvocationCustom {
             CodeInstruction evaluate = DynamicLazyInstance.evaluate(Factories.accessThisField(fprop1.getType(),
                     Util.getAdditionalPropertyFieldName(fprop1)));
 
-            int invokeType = ProxyBootstrap.VIRTUAL;
-
             return CodeSource.fromPart(Factories.returnValue(target.getReturnType(), DynamicInvocationFactory.invokeDynamic(
-                    target.getReturnType(),
                     ProxyBootstrap.BOOTSTRAP_IVK_SPEC,
-                    InvocationFactory.invoke(InvokeType.INVOKE_VIRTUAL, // Invoke dynamic does not care about it
-                            target.getReturnType(), // Invoke dynamic does not care about it, CodeAPI need to be changed
-                            evaluate,
+                    new DynamicMethodSpec(
                             target.getName(),
                             Factories.typeSpec(target.getReturnType(),
                                     CollectionsKt.plus(Collections3.listOf(Object.class), target.getParameterTypes())),
-                            ConversionsKt.getAccess(methodDeclaration.getParameters())
+                            CollectionsKt.plus(Collections3.listOf(evaluate),
+                                    ConversionsKt.getAccess(methodDeclaration.getParameters()))
                     ),
-                    Collections3.listOf(invokeType)
+                    Collections.emptyList()
             )));
         }
     }

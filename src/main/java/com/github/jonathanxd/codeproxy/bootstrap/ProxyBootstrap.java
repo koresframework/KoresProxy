@@ -50,8 +50,7 @@ public class ProxyBootstrap {
             Factories.typeSpec(CallSite.class,
                     MethodHandles.Lookup.class,
                     String.class,
-                    MethodType.class,
-                    Integer.TYPE
+                    MethodType.class
             )
     );
     public static final MethodInvokeSpec BOOTSTRAP_IVK_SPEC = new MethodInvokeSpec(
@@ -76,10 +75,9 @@ public class ProxyBootstrap {
 
     public static CallSite dispatch(MethodHandles.Lookup caller,
                                     String name,
-                                    MethodType type,
-                                    int invokeType) {
+                                    MethodType type) {
 
-        LazyCallSite lazyCallSite = new LazyCallSite(type, caller, invokeType, name);
+        LazyCallSite lazyCallSite = new LazyCallSite(type, caller, name);
 
         MethodHandle handle = FALLBACK.bindTo(lazyCallSite).asCollector(Object[].class, type.parameterCount()).asType(type);
 
@@ -91,22 +89,13 @@ public class ProxyBootstrap {
     private static Object resolve(LazyCallSite callSite, Object[] args) {
         try {
             MethodHandles.Lookup caller = callSite.getCallerLookup();
-            int invokeType = callSite.getInvokeType();
             String name = callSite.getName();
-
-            MethodHandle resolved;
 
             Object instance = args[0];
             Class<?> instanceClass = instance.getClass();
             MethodType type = callSite.getTarget().type().dropParameterTypes(0, 1);
 
-            if (invokeType == VIRTUAL) {
-                resolved = caller.findVirtual(instanceClass, name, type);
-            } else if (invokeType == STATIC) {
-                resolved = caller.findStatic(instanceClass, name, type);
-            } else {
-                throw new IllegalArgumentException("Illegal invoke type '" + invokeType + "'!");
-            }
+            MethodHandle resolved = caller.findVirtual(instanceClass, name, type);
 
             callSite.setTarget(resolved.asType(callSite.getTarget().type()));
 
@@ -119,29 +108,22 @@ public class ProxyBootstrap {
     static class LazyCallSite extends MutableCallSite {
 
         private final MethodHandles.Lookup callerLookup;
-        private final int invokeType;
         private final String name;
 
-        public LazyCallSite(MethodType type, MethodHandles.Lookup callerLookup, int invokeType, String name) {
+        public LazyCallSite(MethodType type, MethodHandles.Lookup callerLookup, String name) {
             super(type);
             this.callerLookup = callerLookup;
-            this.invokeType = invokeType;
             this.name = name;
         }
 
-        public LazyCallSite(MethodHandle target, MethodHandles.Lookup callerLookup, int invokeType, String name) {
+        public LazyCallSite(MethodHandle target, MethodHandles.Lookup callerLookup, String name) {
             super(target);
             this.callerLookup = callerLookup;
-            this.invokeType = invokeType;
             this.name = name;
         }
 
         public MethodHandles.Lookup getCallerLookup() {
             return this.callerLookup;
-        }
-
-        public int getInvokeType() {
-            return this.invokeType;
         }
 
         public String getName() {
