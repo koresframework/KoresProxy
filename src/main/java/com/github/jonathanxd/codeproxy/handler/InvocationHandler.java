@@ -3,7 +3,7 @@
  *
  *         The MIT License (MIT)
  *
- *      Copyright (c) 2017 TheRealBuggy/JonathanxD (https://github.com/JonathanxD/ & https://github.com/TheRealBuggy/) <jonathan.scripter@programmer.net>
+ *      Copyright (c) 2018 TheRealBuggy/JonathanxD (https://github.com/JonathanxD/ & https://github.com/TheRealBuggy/) <jonathan.scripter@programmer.net>
  *      Copyright (c) contributors
  *
  *
@@ -40,6 +40,8 @@ import kotlin.collections.CollectionsKt;
  */
 @FunctionalInterface
 public interface InvocationHandler {
+
+    InvocationHandler NULL = (ignored1, ignored2, ignored3, ignored4) -> null;
 
     /**
      * Handles the invocation of a method.

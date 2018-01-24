@@ -27,55 +27,50 @@
  */
 package com.github.jonathanxd.codeproxy.gen.direct;
 
-import java.lang.reflect.Method;
+import com.github.jonathanxd.codeapi.CodeInstruction;
+import com.github.jonathanxd.codeapi.factory.Factories;
+import com.github.jonathanxd.codeapi.factory.InvocationFactory;
+import com.github.jonathanxd.iutils.box.IMutableBox;
+
+import java.util.Collections;
 
 /**
- * Target element to be invoked.
+ * Delegates all methods that are present in {@link #getTargetClass() target class} a instance
+ * stored in {@link #mutableBox}.
  */
-public final class Target {
+public class MutableInstance extends WrappedInstance {
+
+    private final IMutableBox<?> mutableBox;
 
     /**
-     * Default behavior of CodeProxy (delegate invocation handler)
+     * Creates wrapped instance direct invocation.
+     *
+     * @param mutableBox  Box with instance to delegate to.
+     * @param targetClass Type of the wrapped object. All methods of this type that appears in proxy
+     *                    class will be overwritten with delegation.
      */
-    public static final int DEFAULT_BEHAVIOR = -1;
-
-    /**
-     * Invokes a method of current instance, not every custom supports it.
-     */
-    public static final int SELF = -2;
-
-    /**
-     * The target instance, this instance is extracted from {@link DirectToResolveMethod#instances}
-     * by index. To invoke self instance, use {@link Target#SELF}.
-     */
-    private final int instance;
-
-    /**
-     * Target method to invoke. If the method is static, the instance will not be resolved using
-     * {@link #instance} index and the method will be invoked directly.
-     */
-    private final Method method;
-
-    public Target(int instance, Method method) {
-        this.instance = instance;
-        this.method = method;
+    public MutableInstance(IMutableBox<?> mutableBox, Class<?> targetClass) {
+        super(targetClass);
+        this.mutableBox = mutableBox;
     }
 
-    /**
-     * Gets the instance index to resolve instance object.
-     *
-     * @return Instance index to resolve instance object.
-     */
-    public int getInstance() {
-        return this.instance;
+
+    @Override
+    protected CodeInstruction evaluate(CodeInstruction wrapper) {
+        return InvocationFactory.invokeInterface(IMutableBox.class,
+                wrapper,
+                "getValue",
+                Factories.typeSpec(Object.class),
+                Collections.emptyList());
     }
 
-    /**
-     * Gets method to invoke.
-     *
-     * @return Method to invoke.
-     */
-    public Method getMethod() {
-        return this.method;
+    @Override
+    protected Class<?> getWrapperType() {
+        return IMutableBox.class;
+    }
+
+    @Override
+    protected Object getWrapper() {
+        return this.mutableBox;
     }
 }

@@ -3,7 +3,7 @@
  *
  *         The MIT License (MIT)
  *
- *      Copyright (c) 2017 TheRealBuggy/JonathanxD (https://github.com/JonathanxD/ & https://github.com/TheRealBuggy/) <jonathan.scripter@programmer.net>
+ *      Copyright (c) 2018 TheRealBuggy/JonathanxD (https://github.com/JonathanxD/ & https://github.com/TheRealBuggy/) <jonathan.scripter@programmer.net>
  *      Copyright (c) contributors
  *
  *
@@ -28,19 +28,13 @@
 package test;
 
 import com.github.jonathanxd.codeapi.CodeInstruction;
+import com.github.jonathanxd.codeapi.CodePartKt;
 import com.github.jonathanxd.codeapi.CodeSource;
-import com.github.jonathanxd.codeapi.MutableCodeSource;
-import com.github.jonathanxd.codeapi.base.IfExpr;
-import com.github.jonathanxd.codeapi.base.InstanceOfCheck;
 import com.github.jonathanxd.codeapi.base.MethodDeclaration;
 import com.github.jonathanxd.codeapi.factory.Factories;
 import com.github.jonathanxd.codeapi.factory.InvocationFactory;
-import com.github.jonathanxd.codeapi.factory.VariableFactory;
-import com.github.jonathanxd.codeapi.literal.Literal;
 import com.github.jonathanxd.codeapi.literal.Literals;
 import com.github.jonathanxd.codeapi.operator.Operators;
-import com.github.jonathanxd.codeapi.util.ArgumentsKt;
-import com.github.jonathanxd.codeapi.util.CodePartUtil;
 import com.github.jonathanxd.codeapi.util.conversion.ConversionsKt;
 import com.github.jonathanxd.codeproxy.CodeProxy;
 import com.github.jonathanxd.codeproxy.InvokeSuper;
@@ -51,18 +45,21 @@ import com.github.jonathanxd.codeproxy.gen.direct.ArgsResolver;
 import com.github.jonathanxd.codeproxy.gen.direct.DirectToFunction;
 import com.github.jonathanxd.codeproxy.gen.direct.DirectToResolveMethod;
 import com.github.jonathanxd.codeproxy.gen.direct.InvokeValidator;
+import com.github.jonathanxd.codeproxy.gen.direct.MutableInstance;
 import com.github.jonathanxd.codeproxy.gen.direct.Target;
 import com.github.jonathanxd.codeproxy.handler.InvocationHandler;
 import com.github.jonathanxd.iutils.annotation.Named;
+import com.github.jonathanxd.iutils.box.IMutableBox;
+import com.github.jonathanxd.iutils.box.MutableBox;
 import com.github.jonathanxd.iutils.collection.Collections3;
+import com.github.jonathanxd.iutils.kt.EitherUtilKt;
 import com.github.jonathanxd.iutils.map.MapUtils;
 import com.github.jonathanxd.iutils.object.Try;
-import com.github.jonathanxd.jwiutils.kt.EitherUtilKt;
 
 import org.junit.Assert;
+import org.junit.Test;
 
 import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -72,6 +69,14 @@ import java.util.stream.Collectors;
 import kotlin.collections.ArraysKt;
 
 public class CustomsTest {
+
+    static CodeInstruction get(CodeInstruction receiver, String elem) {
+        return InvocationFactory.invokeInterface(Map.class,
+                Factories.cast(CodePartKt.getType(receiver), Map.class, receiver),
+                "get",
+                Factories.typeSpec(Object.class, Object.class),
+                Collections.singletonList(Literals.STRING(elem)));
+    }
 
     @org.junit.Test
     public void test() {
@@ -268,13 +273,91 @@ public class CustomsTest {
         )));
     }
 
+    static abstract class Greeter {
+        abstract String hello();
+    }
+
+    @Test
+    public void mutableInstance() {
+
+        class AGreeter extends Greeter {
+            @Override
+            String hello() {
+                return "A";
+            }
+        }
+        class BGreeter extends Greeter {
+            @Override
+            String hello() {
+                return "B";
+            }
+        }
+
+        IMutableBox<Greeter> myGreeter = new MutableBox<>();
+
+        Greeter greeter = CodeProxy.newProxyInstance(new Class[0], new Object[0], builder ->
+                builder.classLoader(this.getClass().getClassLoader())
+                        .invocationHandler(InvocationHandler.NULL)
+                        .superClass(Greeter.class)
+                        .addCustom(new MutableInstance(myGreeter, Greeter.class))
+                        .addCustomGenerator(InvokeSuper.class));
+
+        myGreeter.set(new AGreeter());
+
+        Assert.assertEquals("A", greeter.hello());
+
+        myGreeter.set(new BGreeter());
+        Assert.assertEquals("B", greeter.hello());
+    }
+
+    public interface A {
+        int a();
+    }
+
+    public interface B {
+        int x();
+    }
+
+    public interface P extends A, B {
+        int n();
+    }
+
+    public interface Wello {
+        Object onEvent(Object o);
+    }
+
+    public interface Wip {
+
+        default void put(String key, Object value) {
+
+        }
+
+        default String getString(String key) {
+            return "";
+        }
+
+        default int getInt(String key) {
+            return -1;
+        }
+    }
+
+    public static interface Itf {
+        int h();
+
+        int v();
+
+        default String x() {
+            return "Hello";
+        }
+    }
+
     public static class MyArgsResolver implements ArgsResolver {
 
         @Override
         public CodeSource resolve(Method origin,
-                            MethodDeclaration proxyMethod,
-                            Method delegate,
-                            List<CodeInstruction> arguments) {
+                                  MethodDeclaration proxyMethod,
+                                  Method delegate,
+                                  List<CodeInstruction> arguments) {
 
             CodeInstruction arg0 = arguments.get(0);
 
@@ -318,55 +401,6 @@ public class CustomsTest {
             }
 
             return insns;
-        }
-    }
-
-    static CodeInstruction get(CodeInstruction receiver, String elem) {
-        return InvocationFactory.invokeInterface(Map.class,
-                Factories.cast(CodePartUtil.getType(receiver), Map.class, receiver),
-                "get",
-                Factories.typeSpec(Object.class, Object.class),
-                Collections.singletonList(Literals.STRING(elem)));
-    }
-
-    public interface A {
-        int a();
-    }
-
-    public interface B {
-        int x();
-    }
-
-    public interface P extends A, B {
-        int n();
-    }
-
-    public interface Wello {
-        Object onEvent(Object o);
-    }
-
-    public interface Wip {
-
-        default void put(String key, Object value) {
-
-        }
-
-        default String getString(String key) {
-            return "";
-        }
-
-        default int getInt(String key) {
-            return -1;
-        }
-    }
-
-    public static interface Itf {
-        int h();
-
-        int v();
-
-        default String x() {
-            return "Hello";
         }
     }
 

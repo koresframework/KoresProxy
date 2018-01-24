@@ -28,51 +28,61 @@
 package com.github.jonathanxd.codeproxy.gen.direct;
 
 import com.github.jonathanxd.codeapi.CodeInstruction;
-import com.github.jonathanxd.codeapi.factory.Factories;
-import com.github.jonathanxd.codeapi.factory.InvocationFactory;
-import com.github.jonathanxd.iutils.object.Lazy;
+import com.github.jonathanxd.codeapi.common.VariableRef;
+import com.github.jonathanxd.codeproxy.gen.CustomHandlerGenerator;
+import com.github.jonathanxd.codeproxy.gen.DirectInvocationCustom;
+import com.github.jonathanxd.iutils.collection.Collections3;
 
-import java.util.Collections;
+import java.lang.reflect.Method;
+import java.util.List;
 
-/**
- * Delegates all methods that are present {@link #getTargetClass() target class} to a {@link Lazy
- * lazy evaluated instance}.
- */
-public class LazyInstance extends WrappedInstance {
+public abstract class SimpleWrappedInstance implements DirectInvocationCustom {
 
     /**
-     * Lazy that resolves to object to delegate methods.
+     * Creates wrapped instance direct invocation.
      */
-    private final Lazy<?> targetLazy;
+    public SimpleWrappedInstance() {
+    }
 
     /**
-     * Creates lazy instance direct invocation.
+     * Returns evaluation of {@code wrapper} that returns the instance to delegate method.
      *
-     * @param targetLazy  Lazy that resolves the instance to use to delegate methods.
-     * @param targetClass Type of object that will be evaluated by {@code targetLazy}
+     * @param wrapper Instruction that accesses the wrapper object.
+     * @return Evaluation of {@code wrapper} that returns the instance to delegate method.
      */
-    public LazyInstance(Lazy<?> targetLazy,
-                        Class<?> targetClass) {
-        super(targetClass);
-        this.targetLazy = targetLazy;
+    protected abstract CodeInstruction evaluate(CodeInstruction wrapper);
+
+    /**
+     * Gets the type of the wrapper. This type is used to create a field for the wrapper.
+     *
+     * @return Type of the wrapper.
+     */
+    protected abstract Class<?> getWrapperType();
+
+    /**
+     * Gets the instance of the wrapper. This instance will be used to create proxy instance and to
+     * get wrapped instance.
+     *
+     * @return Instance of the wrapper.
+     */
+    protected abstract Object getWrapper();
+
+    @Override
+    public List<Property> getAdditionalProperties() {
+        return Collections3.listOf(
+                new Property(new VariableRef(this.getWrapperType(), "wrapper"), null)
+        );
     }
 
     @Override
-    protected CodeInstruction evaluate(CodeInstruction lazy) {
-        return InvocationFactory.invokeVirtual(Lazy.class,
-                lazy,
-                "get",
-                Factories.typeSpec(Object.class),
-                Collections.emptyList());
+    public List<Object> getValueForConstructorProperties() {
+        return Collections3.listOf(this.getWrapper());
     }
 
     @Override
-    protected Class<?> getWrapperType() {
-        return Lazy.class;
-    }
+    public abstract boolean generateSpecCache(Method m);
 
     @Override
-    protected Object getWrapper() {
-        return this.targetLazy;
-    }
+    public abstract List<CustomHandlerGenerator> getCustomHandlerGenerators();
+
 }

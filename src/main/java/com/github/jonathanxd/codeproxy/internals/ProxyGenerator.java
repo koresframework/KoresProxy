@@ -3,7 +3,7 @@
  *
  *         The MIT License (MIT)
  *
- *      Copyright (c) 2017 TheRealBuggy/JonathanxD (https://github.com/JonathanxD/ & https://github.com/TheRealBuggy/) <jonathan.scripter@programmer.net>
+ *      Copyright (c) 2018 TheRealBuggy/JonathanxD (https://github.com/JonathanxD/ & https://github.com/TheRealBuggy/) <jonathan.scripter@programmer.net>
  *      Copyright (c) contributors
  *
  *
@@ -31,6 +31,7 @@ import com.github.jonathanxd.codeapi.CodeInstruction;
 import com.github.jonathanxd.codeapi.MutableCodeSource;
 import com.github.jonathanxd.codeapi.Types;
 import com.github.jonathanxd.codeapi.base.Access;
+import com.github.jonathanxd.codeapi.base.Alias;
 import com.github.jonathanxd.codeapi.base.ArrayConstructor;
 import com.github.jonathanxd.codeapi.base.ClassDeclaration;
 import com.github.jonathanxd.codeapi.base.CodeModifier;
@@ -54,10 +55,8 @@ import com.github.jonathanxd.codeapi.factory.InvocationFactory;
 import com.github.jonathanxd.codeapi.factory.PartFactory;
 import com.github.jonathanxd.codeapi.factory.VariableFactory;
 import com.github.jonathanxd.codeapi.literal.Literals;
-import com.github.jonathanxd.codeapi.type.Generic;
-import com.github.jonathanxd.codeapi.util.Alias;
-import com.github.jonathanxd.codeapi.util.CodeTypes;
-import com.github.jonathanxd.codeapi.util.ImplicitCodeType;
+import com.github.jonathanxd.codeapi.type.CodeTypes;
+import com.github.jonathanxd.codeapi.type.ImplicitCodeType;
 import com.github.jonathanxd.codeapi.util.conversion.ConversionsKt;
 import com.github.jonathanxd.codeproxy.InvokeSuper;
 import com.github.jonathanxd.codeproxy.ProxyData;
@@ -272,7 +271,7 @@ public class ProxyGenerator {
 
         ClassDeclaration.Builder proxyClassBuilder = ClassDeclaration.Builder.builder()
                 .modifiers(CodeModifier.PUBLIC, CodeModifier.SYNTHETIC)
-                .annotations(Factories.visibleAnnotation(Proxy.class))
+                .annotations(Factories.runtimeAnnotation(Proxy.class))
                 .qualifiedName(package_ + "." + ProxyGenerator.getProxyName())
                 .superClass(superType)
                 .implementations(interfaces);
@@ -350,7 +349,13 @@ public class ProxyGenerator {
 
         Class<?> superClass = proxyData.getSuperClass();
 
-        for (Constructor<?> constructor : superClass.getConstructors()) {
+        Set<Constructor<?>> classConstructors =
+                new HashSet<>(Collections3.<Constructor<?>>prepend(
+                        Arrays.asList(superClass.getDeclaredConstructors()),
+                        Arrays.asList(superClass.getConstructors())
+                ));
+
+        for (Constructor<?> constructor : classConstructors) {
 
             if (Modifier.isPublic(constructor.getModifiers())
                     || Modifier.isProtected(constructor.getModifiers())
@@ -417,7 +422,7 @@ public class ProxyGenerator {
         }
 
         if (constructors.size() == 0)
-            throw new IllegalArgumentException("Cannot generate proxy to super class: '" + superClass + "'! No accessible constructors.");
+            throw new IllegalArgumentException("Cannot generate proxy to super class: '" + superClass + "'! No accessible zero-arg constructor.");
 
         return constructors;
     }

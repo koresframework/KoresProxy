@@ -3,7 +3,7 @@
  *
  *         The MIT License (MIT)
  *
- *      Copyright (c) 2017 TheRealBuggy/JonathanxD (https://github.com/JonathanxD/ & https://github.com/TheRealBuggy/) <jonathan.scripter@programmer.net>
+ *      Copyright (c) 2018 TheRealBuggy/JonathanxD (https://github.com/JonathanxD/ & https://github.com/TheRealBuggy/) <jonathan.scripter@programmer.net>
  *      Copyright (c) contributors
  *
  *
@@ -28,6 +28,7 @@
 package com.github.jonathanxd.codeproxy.internals;
 
 import com.github.jonathanxd.codeapi.CodeInstruction;
+import com.github.jonathanxd.codeapi.CodePartKt;
 import com.github.jonathanxd.codeapi.MutableCodeSource;
 import com.github.jonathanxd.codeapi.Types;
 import com.github.jonathanxd.codeapi.base.Access;
@@ -47,8 +48,7 @@ import com.github.jonathanxd.codeapi.factory.PartFactory;
 import com.github.jonathanxd.codeapi.literal.Literals;
 import com.github.jonathanxd.codeapi.type.CodeType;
 import com.github.jonathanxd.codeapi.type.Generic;
-import com.github.jonathanxd.codeapi.util.CodePartUtil;
-import com.github.jonathanxd.codeapi.util.ImplicitCodeType;
+import com.github.jonathanxd.codeapi.type.ImplicitCodeType;
 import com.github.jonathanxd.codeapi.util.conversion.ConversionsKt;
 import com.github.jonathanxd.codeproxy.ProxyData;
 import com.github.jonathanxd.codeproxy.gen.Custom;
@@ -127,7 +127,7 @@ public class Util {
 
     static List<CodeInstruction> cast(List<CodeInstruction> list, CodeType target) {
         return list.stream().map(argument -> {
-            Type type = CodePartUtil.getType(argument);
+            Type type = CodePartKt.getType(argument);
 
             if (ImplicitCodeType.isArray(type))
                 return argument;

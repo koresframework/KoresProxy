@@ -3,7 +3,7 @@
  *
  *         The MIT License (MIT)
  *
- *      Copyright (c) 2017 TheRealBuggy/JonathanxD (https://github.com/JonathanxD/ & https://github.com/TheRealBuggy/) <jonathan.scripter@programmer.net>
+ *      Copyright (c) 2018 TheRealBuggy/JonathanxD (https://github.com/JonathanxD/ & https://github.com/TheRealBuggy/) <jonathan.scripter@programmer.net>
  *      Copyright (c) contributors
  *
  *
@@ -38,7 +38,7 @@ import com.github.jonathanxd.codeapi.factory.Factories;
 import com.github.jonathanxd.codeapi.factory.InvocationFactory;
 import com.github.jonathanxd.codeapi.factory.VariableFactory;
 import com.github.jonathanxd.codeapi.literal.Literals;
-import com.github.jonathanxd.codeapi.util.ImplicitCodeType;
+import com.github.jonathanxd.codeapi.type.ImplicitCodeType;
 import com.github.jonathanxd.codeapi.util.conversion.ConversionsKt;
 import com.github.jonathanxd.codeproxy.internals.Util;
 import com.github.jonathanxd.iutils.collection.Collections3;
@@ -50,7 +50,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.function.Function;
 import java.util.function.IntFunction;
 import java.util.function.ToIntFunction;
 
@@ -61,6 +60,9 @@ import java.util.function.ToIntFunction;
  */
 public interface DirectInvocationCustom extends Custom {
 
+    /**
+     * Delegates invocations to static methods of {@link #getTarget() target}.
+     */
     class Static implements DirectInvocationCustom {
 
         /**
@@ -143,6 +145,9 @@ public interface DirectInvocationCustom extends Custom {
         }
     }
 
+    /**
+     * Delegates all invocations to {@link #getTarget() target instance}.
+     */
     class Instance implements DirectInvocationCustom {
 
         /**
@@ -252,6 +257,10 @@ public interface DirectInvocationCustom extends Custom {
         }
     }
 
+    /**
+     * Delegates to a {@code target} of {@link #getTargets() targets} resolved by {@link
+     * #getTargetResolver() target resolver}.
+     */
     class MultiInstanceResolved implements DirectInvocationCustom {
 
         /**
@@ -410,15 +419,15 @@ public interface DirectInvocationCustom extends Custom {
                     return CodeSource.fromVarArgs(
                             varDec,
                             Factories.returnValue(target.getReturnType(),
-                            InvocationFactory.invoke(invokeType,
-                                    type,
-                                    invokeType.isStatic() ? Access.STATIC
-                                            : Factories.accessVariable(varDec),
-                                    method.getName(),
-                                    ConversionsKt.getTypeSpec(method),
-                                    ConversionsKt.getAccess(methodDeclaration.getParameters())
-                            )
-                    ));
+                                    InvocationFactory.invoke(invokeType,
+                                            type,
+                                            invokeType.isStatic() ? Access.STATIC
+                                                    : Factories.accessVariable(varDec),
+                                            method.getName(),
+                                            ConversionsKt.getTypeSpec(method),
+                                            ConversionsKt.getAccess(methodDeclaration.getParameters())
+                                    )
+                            ));
 
 
                 } catch (NoSuchMethodException ignored) {

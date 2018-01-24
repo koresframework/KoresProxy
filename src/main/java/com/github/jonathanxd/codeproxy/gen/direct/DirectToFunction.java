@@ -3,7 +3,7 @@
  *
  *         The MIT License (MIT)
  *
- *      Copyright (c) 2017 TheRealBuggy/JonathanxD (https://github.com/JonathanxD/ & https://github.com/TheRealBuggy/) <jonathan.scripter@programmer.net>
+ *      Copyright (c) 2018 TheRealBuggy/JonathanxD (https://github.com/JonathanxD/ & https://github.com/TheRealBuggy/) <jonathan.scripter@programmer.net>
  *      Copyright (c) contributors
  *
  *
@@ -52,6 +52,9 @@ import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.ToIntFunction;
 
+/**
+ * Delegates invocations to Java 8 {@link Function Functions}.
+ */
 public class DirectToFunction implements DirectInvocationCustom {
     public static final Object[] EMPTY_ARRAY = new Object[0];
 

@@ -3,7 +3,7 @@
  *
  *         The MIT License (MIT)
  *
- *      Copyright (c) 2017 TheRealBuggy/JonathanxD (https://github.com/JonathanxD/ & https://github.com/TheRealBuggy/) <jonathan.scripter@programmer.net>
+ *      Copyright (c) 2018 TheRealBuggy/JonathanxD (https://github.com/JonathanxD/ & https://github.com/TheRealBuggy/) <jonathan.scripter@programmer.net>
  *      Copyright (c) contributors
  *
  *
@@ -30,6 +30,7 @@ package com.github.jonathanxd.codeproxy.gen.direct;
 import com.github.jonathanxd.codeapi.CodeInstruction;
 import com.github.jonathanxd.codeapi.CodeSource;
 import com.github.jonathanxd.codeapi.base.Access;
+import com.github.jonathanxd.codeapi.base.Alias;
 import com.github.jonathanxd.codeapi.base.IfStatement;
 import com.github.jonathanxd.codeapi.base.InvokeType;
 import com.github.jonathanxd.codeapi.base.MethodDeclaration;
@@ -39,9 +40,8 @@ import com.github.jonathanxd.codeapi.factory.Factories;
 import com.github.jonathanxd.codeapi.factory.InvocationFactory;
 import com.github.jonathanxd.codeapi.factory.VariableFactory;
 import com.github.jonathanxd.codeapi.literal.Literals;
-import com.github.jonathanxd.codeapi.util.Alias;
+import com.github.jonathanxd.codeapi.type.ImplicitCodeType;
 import com.github.jonathanxd.codeapi.util.ArgumentsKt;
-import com.github.jonathanxd.codeapi.util.ImplicitCodeType;
 import com.github.jonathanxd.codeapi.util.conversion.ConversionsKt;
 import com.github.jonathanxd.codeproxy.gen.CustomHandlerGenerator;
 import com.github.jonathanxd.codeproxy.gen.DirectInvocationCustom;
@@ -63,6 +63,10 @@ import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.IntFunction;
 
+/**
+ * Resolves the target invocation instance for every method with support to {@link ArgsResolver} and
+ * {@link InvokeValidator}.
+ */
 public class DirectToResolveMethod implements DirectInvocationCustom {
     /**
      * Instances to be used to invoke the method, commonly resolved by index.
