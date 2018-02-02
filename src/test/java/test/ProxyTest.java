@@ -1,5 +1,5 @@
 /*
- *      CodeProxy - Proxy Pattern written on top of CodeAPI! <https://github.com/JonathanxD/CodeProxy>
+ *      KoresProxy - Proxy Pattern written on top of Kores! <https://github.com/JonathanxD/KoresProxy>
  *
  *         The MIT License (MIT)
  *
@@ -27,8 +27,8 @@
  */
 package test;
 
-import com.github.jonathanxd.codeproxy.CodeProxy;
-import com.github.jonathanxd.codeproxy.internals.Util;
+import com.github.jonathanxd.koresproxy.KoresProxy;
+import com.github.jonathanxd.koresproxy.internals.Util;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -42,7 +42,7 @@ public class ProxyTest {
 
         MyClass myClass = new MyClass("OR");
 
-        MyClass apb = CodeProxy.newProxyInstance(this.getClass().getClassLoader(), MyClass.class, (proxy, method, args, info) -> {
+        MyClass apb = KoresProxy.newProxyInstance(this.getClass().getClassLoader(), MyClass.class, (proxy, method, args, info) -> {
 
             Thread.dumpStack();
 
@@ -87,7 +87,7 @@ public class ProxyTest {
         }
         Assert.assertEquals("apb.r()", myClass.r(0), apb.r(0));
         Assert.assertEquals("hashCode", 7, apb.hashCode());
-        Assert.assertTrue("isProxy", CodeProxy.isProxy(apb));
+        Assert.assertTrue("isProxy", KoresProxy.isProxy(apb));
 
     }
 

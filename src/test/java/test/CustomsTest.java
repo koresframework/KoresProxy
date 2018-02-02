@@ -1,5 +1,5 @@
 /*
- *      CodeProxy - Proxy Pattern written on top of CodeAPI! <https://github.com/JonathanxD/CodeProxy>
+ *      KoresProxy - Proxy Pattern written on top of Kores! <https://github.com/JonathanxD/KoresProxy>
  *
  *         The MIT License (MIT)
  *
@@ -27,27 +27,27 @@
  */
 package test;
 
-import com.github.jonathanxd.codeapi.CodeInstruction;
-import com.github.jonathanxd.codeapi.CodePartKt;
-import com.github.jonathanxd.codeapi.CodeSource;
-import com.github.jonathanxd.codeapi.base.MethodDeclaration;
-import com.github.jonathanxd.codeapi.factory.Factories;
-import com.github.jonathanxd.codeapi.factory.InvocationFactory;
-import com.github.jonathanxd.codeapi.literal.Literals;
-import com.github.jonathanxd.codeapi.operator.Operators;
-import com.github.jonathanxd.codeapi.util.conversion.ConversionsKt;
-import com.github.jonathanxd.codeproxy.CodeProxy;
-import com.github.jonathanxd.codeproxy.InvokeSuper;
-import com.github.jonathanxd.codeproxy.gen.CustomHandlerGenerator;
-import com.github.jonathanxd.codeproxy.gen.DirectInvocationCustom;
-import com.github.jonathanxd.codeproxy.gen.GenEnv;
-import com.github.jonathanxd.codeproxy.gen.direct.ArgsResolver;
-import com.github.jonathanxd.codeproxy.gen.direct.DirectToFunction;
-import com.github.jonathanxd.codeproxy.gen.direct.DirectToResolveMethod;
-import com.github.jonathanxd.codeproxy.gen.direct.InvokeValidator;
-import com.github.jonathanxd.codeproxy.gen.direct.MutableInstance;
-import com.github.jonathanxd.codeproxy.gen.direct.Target;
-import com.github.jonathanxd.codeproxy.handler.InvocationHandler;
+import com.github.jonathanxd.kores.Instruction;
+import com.github.jonathanxd.kores.KoresPartKt;
+import com.github.jonathanxd.kores.Instructions;
+import com.github.jonathanxd.kores.base.MethodDeclaration;
+import com.github.jonathanxd.kores.factory.Factories;
+import com.github.jonathanxd.kores.factory.InvocationFactory;
+import com.github.jonathanxd.kores.literal.Literals;
+import com.github.jonathanxd.kores.operator.Operators;
+import com.github.jonathanxd.kores.util.conversion.ConversionsKt;
+import com.github.jonathanxd.koresproxy.KoresProxy;
+import com.github.jonathanxd.koresproxy.InvokeSuper;
+import com.github.jonathanxd.koresproxy.gen.CustomHandlerGenerator;
+import com.github.jonathanxd.koresproxy.gen.DirectInvocationCustom;
+import com.github.jonathanxd.koresproxy.gen.GenEnv;
+import com.github.jonathanxd.koresproxy.gen.direct.ArgsResolver;
+import com.github.jonathanxd.koresproxy.gen.direct.DirectToFunction;
+import com.github.jonathanxd.koresproxy.gen.direct.DirectToResolveMethod;
+import com.github.jonathanxd.koresproxy.gen.direct.InvokeValidator;
+import com.github.jonathanxd.koresproxy.gen.direct.MutableInstance;
+import com.github.jonathanxd.koresproxy.gen.direct.Target;
+import com.github.jonathanxd.koresproxy.handler.InvocationHandler;
 import com.github.jonathanxd.iutils.annotation.Named;
 import com.github.jonathanxd.iutils.box.IMutableBox;
 import com.github.jonathanxd.iutils.box.MutableBox;
@@ -70,9 +70,9 @@ import kotlin.collections.ArraysKt;
 
 public class CustomsTest {
 
-    static CodeInstruction get(CodeInstruction receiver, String elem) {
+    static Instruction get(Instruction receiver, String elem) {
         return InvocationFactory.invokeInterface(Map.class,
-                Factories.cast(CodePartKt.getType(receiver), Map.class, receiver),
+                Factories.cast(KoresPartKt.getType(receiver), Map.class, receiver),
                 "get",
                 Factories.typeSpec(Object.class, Object.class),
                 Collections.singletonList(Literals.STRING(elem)));
@@ -92,7 +92,7 @@ public class CustomsTest {
             return InvokeSuper.INVOKE_SUPER;
         };
 
-        Itf itf = CodeProxy.newProxyInstance(new Class[0], new Object[0], builder ->
+        Itf itf = KoresProxy.newProxyInstance(new Class[0], new Object[0], builder ->
                 builder.classLoader(this.getClass().getClassLoader())
                         .addInterface(Itf.class)
                         .addCustomHandlerGenerator(MyCustomHandler.class)
@@ -113,7 +113,7 @@ public class CustomsTest {
             return InvokeSuper.INVOKE_SUPER;
         };
 
-        Wip wip = CodeProxy.newProxyInstance(new Class[0], new Object[0], builder ->
+        Wip wip = KoresProxy.newProxyInstance(new Class[0], new Object[0], builder ->
                 builder.classLoader(this.getClass().getClassLoader())
                         .addInterface(Wip.class)
                         .addCustom(new DirectInvocationCustom.Static(StaticBoom.class))
@@ -134,7 +134,7 @@ public class CustomsTest {
             return InvokeSuper.INVOKE_SUPER;
         };
 
-        Wip wip = CodeProxy.newProxyInstance(new Class[0], new Object[0], builder ->
+        Wip wip = KoresProxy.newProxyInstance(new Class[0], new Object[0], builder ->
                 builder.classLoader(this.getClass().getClassLoader())
                         .addInterface(Wip.class)
                         .addCustom(new DirectInvocationCustom.Instance(new Boom()))
@@ -158,7 +158,7 @@ public class CustomsTest {
         A a = () -> 7;
         B b = () -> 9;
 
-        P origin = CodeProxy.newProxyInstance(new Class[0], new Object[0], builder ->
+        P origin = KoresProxy.newProxyInstance(new Class[0], new Object[0], builder ->
                 builder.classLoader(this.getClass().getClassLoader())
                         .addInterface(P.class)
                         .addCustom(new DirectToFunction(
@@ -174,7 +174,7 @@ public class CustomsTest {
                         .invocationHandler(myHandler)
         );
 
-        P p = CodeProxy.newProxyInstance(new Class[0], new Object[0], builder ->
+        P p = KoresProxy.newProxyInstance(new Class[0], new Object[0], builder ->
                 builder.classLoader(this.getClass().getClassLoader())
                         .addInterface(A.class)
                         .addInterface(B.class)
@@ -212,7 +212,7 @@ public class CustomsTest {
         Method onHello =
                 EitherUtilKt.getRightOrFail(Try.TryEx(() -> MyHandler.class.getDeclaredMethod("onHello", String.class)));
 
-        Wello origin = CodeProxy.newProxyInstance(new Class[0], new Object[0], builder ->
+        Wello origin = KoresProxy.newProxyInstance(new Class[0], new Object[0], builder ->
                 builder.classLoader(this.getClass().getClassLoader())
                         .addInterface(Wello.class)
                         .addCustom(new DirectToResolveMethod(
@@ -247,7 +247,7 @@ public class CustomsTest {
                 EitherUtilKt.getRightOrFail(Try.TryEx(() -> MyHandler2.class.getDeclaredMethod("onHello",
                         String.class, Integer.class)));
 
-        Wello origin = CodeProxy.newProxyInstance(new Class[0], new Object[0], builder ->
+        Wello origin = KoresProxy.newProxyInstance(new Class[0], new Object[0], builder ->
                 builder.classLoader(this.getClass().getClassLoader())
                         .addInterface(Wello.class)
                         .addCustom(new DirectToResolveMethod(
@@ -295,7 +295,7 @@ public class CustomsTest {
 
         IMutableBox<Greeter> myGreeter = new MutableBox<>();
 
-        Greeter greeter = CodeProxy.newProxyInstance(new Class[0], new Object[0], builder ->
+        Greeter greeter = KoresProxy.newProxyInstance(new Class[0], new Object[0], builder ->
                 builder.classLoader(this.getClass().getClassLoader())
                         .invocationHandler(InvocationHandler.NULL)
                         .superClass(Greeter.class)
@@ -354,12 +354,12 @@ public class CustomsTest {
     public static class MyArgsResolver implements ArgsResolver {
 
         @Override
-        public CodeSource resolve(Method origin,
+        public Instructions resolve(Method origin,
                                   MethodDeclaration proxyMethod,
                                   Method delegate,
-                                  List<CodeInstruction> arguments) {
+                                  List<Instruction> arguments) {
 
-            CodeInstruction arg0 = arguments.get(0);
+            Instruction arg0 = arguments.get(0);
 
             List<String> names = ArraysKt.map(delegate.getParameters(), p -> p.getAnnotation(Named.class).value());
 
@@ -367,7 +367,7 @@ public class CustomsTest {
 
             arguments.addAll(names.stream().map(s -> get(arg0, s)).collect(Collectors.toList()));
 
-            return CodeSource.empty();
+            return Instructions.empty();
         }
 
 
@@ -376,15 +376,15 @@ public class CustomsTest {
     public static class MyInvokeValidator implements InvokeValidator {
 
         @Override
-        public List<CodeInstruction> generateValidation(Method origin,
+        public List<Instruction> generateValidation(Method origin,
                                                         MethodDeclaration proxyMethod,
                                                         Method delegate,
-                                                        List<CodeInstruction> arguments) {
+                                                        List<Instruction> arguments) {
             List<String> names = ArraysKt.map(delegate.getParameters(), p -> p.getAnnotation(Named.class).value());
 
-            CodeInstruction map = ConversionsKt.getAccess(proxyMethod.getParameters()).get(0);
+            Instruction map = ConversionsKt.getAccess(proxyMethod.getParameters()).get(0);
 
-            List<CodeInstruction> insns = Collections3.listOf(
+            List<Instruction> insns = Collections3.listOf(
                     Factories.checkTrue(Factories.isInstanceOf(map, Map.class))
             );
 
@@ -455,15 +455,15 @@ public class CustomsTest {
     public static class MyCustomHandler implements CustomHandlerGenerator {
 
         @Override
-        public CodeSource handle(Method target, MethodDeclaration methodDeclaration, GenEnv env) {
+        public Instructions handle(Method target, MethodDeclaration methodDeclaration, GenEnv env) {
             if (target.getName().equals("v")) {
                 env.setMayProceed(false);
                 env.setInvokeHandler(false);
 
-                return CodeSource.fromPart(Factories.returnValue(Integer.TYPE, Literals.INT(50)));
+                return Instructions.fromPart(Factories.returnValue(Integer.TYPE, Literals.INT(50)));
             }
 
-            return CodeSource.empty();
+            return Instructions.empty();
         }
     }
 

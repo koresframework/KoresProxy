@@ -25,46 +25,54 @@
  *      OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  *      THE SOFTWARE.
  */
-package test;
+package com.github.jonathanxd.koresproxy.gen.direct;
 
-import com.github.jonathanxd.koresproxy.KoresProxy;
-import com.github.jonathanxd.koresproxy.InvokeSuper;
+import com.github.jonathanxd.kores.Instruction;
+import com.github.jonathanxd.kores.factory.Factories;
+import com.github.jonathanxd.kores.factory.InvocationFactory;
+import com.github.jonathanxd.iutils.object.Lazy;
 
-import org.junit.Assert;
+import java.util.Collections;
 
-public class DefaultTest {
+/**
+ * Delegates all methods that are present {@link #getTargetClass() target class} to a {@link Lazy
+ * lazy evaluated instance}.
+ */
+public class LazyInstance extends WrappedInstance {
 
-    @org.junit.Test
-    public void test() {
+    /**
+     * Lazy that resolves to object to delegate methods.
+     */
+    private final Lazy<?> targetLazy;
 
-
-        Itf itf = (Itf) KoresProxy.newProxyInstance(this.getClass().getClassLoader(), Object.class, new Class[] { Itf.class }, (proxy, method, args, info) -> {
-
-            if(method.getName().equals("h"))
-                return 7;
-
-            return InvokeSuper.INVOKE_SUPER;
-        });
-
-        Assert.assertEquals("itf.h()", 7, itf.h());
-        Assert.assertEquals("itf.x()", "Hello", itf.x());
-
+    /**
+     * Creates lazy instance direct invocation.
+     *
+     * @param targetLazy  Lazy that resolves the instance to use to delegate methods.
+     * @param targetClass Type of object that will be evaluated by {@code targetLazy}
+     */
+    public LazyInstance(Lazy<?> targetLazy,
+                        Class<?> targetClass) {
+        super(targetClass);
+        this.targetLazy = targetLazy;
     }
 
-    public class Hey extends Object {
-        @Override
-        protected void finalize() throws Throwable {
-            super.finalize();
-        }
+    @Override
+    protected Instruction evaluate(Instruction lazy) {
+        return InvocationFactory.invokeVirtual(Lazy.class,
+                lazy,
+                "get",
+                Factories.typeSpec(Object.class),
+                Collections.emptyList());
     }
 
-    public static interface Itf {
-        int h();
-
-        default String x() {
-            return "Hello";
-        }
+    @Override
+    protected Class<?> getWrapperType() {
+        return Lazy.class;
     }
 
-
+    @Override
+    protected Object getWrapper() {
+        return this.targetLazy;
+    }
 }

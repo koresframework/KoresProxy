@@ -1,5 +1,5 @@
 /*
- *      CodeProxy - Proxy Pattern written on top of CodeAPI! <https://github.com/JonathanxD/CodeProxy>
+ *      KoresProxy - Proxy Pattern written on top of Kores! <https://github.com/JonathanxD/KoresProxy>
  *
  *         The MIT License (MIT)
  *
@@ -27,7 +27,7 @@
  */
 package test;
 
-import com.github.jonathanxd.codeproxy.CodeProxy;
+import com.github.jonathanxd.koresproxy.KoresProxy;
 
 import org.junit.Assert;
 
@@ -35,7 +35,7 @@ public class Readme {
 
     @org.junit.Test
     public void readme() {
-        MyClass instance = CodeProxy.newProxyInstance(this.getClass().getClassLoader(), MyClass.class, (instance0, method, args, proxyData) -> {
+        MyClass instance = KoresProxy.newProxyInstance(this.getClass().getClassLoader(), MyClass.class, (instance0, method, args, proxyData) -> {
             if (method.getName().equals("getNumber"))
                 return 5;
 
@@ -45,7 +45,7 @@ public class Readme {
         Assert.assertEquals("getNumber", 5, instance.getNumber());
 
         MyClass origin = new MyClass();
-        MyClass instance2 = CodeProxy.newProxyInstance(this.getClass().getClassLoader(), MyClass.class, (instance0, method, args, proxyData) -> {
+        MyClass instance2 = KoresProxy.newProxyInstance(this.getClass().getClassLoader(), MyClass.class, (instance0, method, args, proxyData) -> {
             if (method.getName().equals("getNumber"))
                 return 5;
 
@@ -57,7 +57,7 @@ public class Readme {
 
 
         ClassWithConstructor cwcOrigin2 = new ClassWithConstructor("Origin 2");
-        ClassWithConstructor cwc = CodeProxy.newProxyInstance(this.getClass().getClassLoader(), ClassWithConstructor.class, (instance0, method, args, proxyData) -> {
+        ClassWithConstructor cwc = KoresProxy.newProxyInstance(this.getClass().getClassLoader(), ClassWithConstructor.class, (instance0, method, args, proxyData) -> {
             return method.resolveOrFail(cwcOrigin2.getClass()).bindTo(cwcOrigin2).invokeWithArguments(args);
         }, new Class[] { String.class }, new Object[]{ cwcOrigin2.getName() });
 

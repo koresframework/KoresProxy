@@ -25,46 +25,34 @@
  *      OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  *      THE SOFTWARE.
  */
-package test;
+package com.github.jonathanxd.koresproxy.gen.direct;
 
-import com.github.jonathanxd.koresproxy.KoresProxy;
-import com.github.jonathanxd.koresproxy.InvokeSuper;
+import com.github.jonathanxd.kores.Instruction;
+import com.github.jonathanxd.kores.base.IfExpressionHolder;
+import com.github.jonathanxd.kores.base.MethodDeclaration;
 
-import org.junit.Assert;
+import java.lang.reflect.Method;
+import java.util.List;
 
-public class DefaultTest {
+/**
+ * Generates a validation to the invocation of the {@code delegate}.
+ */
+public interface InvokeValidator {
 
-    @org.junit.Test
-    public void test() {
-
-
-        Itf itf = (Itf) KoresProxy.newProxyInstance(this.getClass().getClassLoader(), Object.class, new Class[] { Itf.class }, (proxy, method, args, info) -> {
-
-            if(method.getName().equals("h"))
-                return 7;
-
-            return InvokeSuper.INVOKE_SUPER;
-        });
-
-        Assert.assertEquals("itf.h()", 7, itf.h());
-        Assert.assertEquals("itf.x()", "Hello", itf.x());
-
-    }
-
-    public class Hey extends Object {
-        @Override
-        protected void finalize() throws Throwable {
-            super.finalize();
-        }
-    }
-
-    public static interface Itf {
-        int h();
-
-        default String x() {
-            return "Hello";
-        }
-    }
-
+    /**
+     * Generates validation to invocation of {@code delegate}.
+     *
+     * @param origin      Origin method (method to generate {@code proxyMethod}).
+     * @param proxyMethod Generated proxy method.
+     * @param delegate    Method to delegate.
+     * @param arguments   A copy of arguments to be used to invoke the method.
+     * @return {@link IfExpressionHolder#getExpressions() If expression list} to be used to
+     * determine if {@code delegate} method should be invoked or {@code default behavior} should
+     * run.
+     */
+    List<Instruction> generateValidation(Method origin,
+                                             MethodDeclaration proxyMethod,
+                                             Method delegate,
+                                             List<Instruction> arguments);
 
 }

@@ -4,12 +4,12 @@ plugins {
 }
 
 group 'com.github.jonathanxd'
-version '2.4.0-SNAPSHOT'
+version '2.5.0-SNAPSHOT'
 
 // Setup
 
 ext {
-    description = "Proxy Pattern written on top of CodeAPI!"
+    description = "Proxy Pattern written on top of Kores!"
 }
 
 
@@ -36,8 +36,8 @@ repositories {
 
 allprojects{
     dependencies {
-        compile 'com.github.JonathanxD:CodeAPI:4.0.0.21-beta'
-        compile 'com.github.JonathanxD.CodeAPI-BytecodeWriter:CodeAPI-BytecodeWriter:4.0.0.24-beta-bytecode'
+        compile 'com.github.JonathanxD.Kores:Kores:4.0.0.32-beta'
+        compile 'com.github.JonathanxD.Kores-BytecodeWriter:Kores-BytecodeWriter:4.0.0.30-beta-bytecode'
 
         testCompile group: 'junit', name:'junit', version: '4.12'
     }
@@ -82,7 +82,7 @@ allprojects{
         ext.name = "$name"
         ext.organization = 'TheRealBuggy/JonathanxD (https://github.com/JonathanxD/ & https://github.com/TheRealBuggy/)'
         ext.description = "$description"
-        ext.url = 'https://github.com/JonathanxD/CodeProxy'
+        ext.url = 'https://github.com/JonathanxD/KoresProxy'
         ext.year = Calendar.getInstance().get(Calendar.YEAR)
         ext.email = 'jonathan.scripter@programmer.net'
 

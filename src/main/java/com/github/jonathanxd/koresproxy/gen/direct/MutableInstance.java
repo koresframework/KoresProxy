@@ -25,46 +25,52 @@
  *      OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  *      THE SOFTWARE.
  */
-package test;
+package com.github.jonathanxd.koresproxy.gen.direct;
 
-import com.github.jonathanxd.koresproxy.KoresProxy;
-import com.github.jonathanxd.koresproxy.InvokeSuper;
+import com.github.jonathanxd.kores.Instruction;
+import com.github.jonathanxd.kores.factory.Factories;
+import com.github.jonathanxd.kores.factory.InvocationFactory;
+import com.github.jonathanxd.iutils.box.IMutableBox;
 
-import org.junit.Assert;
+import java.util.Collections;
 
-public class DefaultTest {
+/**
+ * Delegates all methods that are present in {@link #getTargetClass() target class} a instance
+ * stored in {@link #mutableBox}.
+ */
+public class MutableInstance extends WrappedInstance {
 
-    @org.junit.Test
-    public void test() {
+    private final IMutableBox<?> mutableBox;
 
-
-        Itf itf = (Itf) KoresProxy.newProxyInstance(this.getClass().getClassLoader(), Object.class, new Class[] { Itf.class }, (proxy, method, args, info) -> {
-
-            if(method.getName().equals("h"))
-                return 7;
-
-            return InvokeSuper.INVOKE_SUPER;
-        });
-
-        Assert.assertEquals("itf.h()", 7, itf.h());
-        Assert.assertEquals("itf.x()", "Hello", itf.x());
-
-    }
-
-    public class Hey extends Object {
-        @Override
-        protected void finalize() throws Throwable {
-            super.finalize();
-        }
-    }
-
-    public static interface Itf {
-        int h();
-
-        default String x() {
-            return "Hello";
-        }
+    /**
+     * Creates wrapped instance direct invocation.
+     *
+     * @param mutableBox  Box with instance to delegate to.
+     * @param targetClass Type of the wrapped object. All methods of this type that appears in proxy
+     *                    class will be overwritten with delegation.
+     */
+    public MutableInstance(IMutableBox<?> mutableBox, Class<?> targetClass) {
+        super(targetClass);
+        this.mutableBox = mutableBox;
     }
 
 
+    @Override
+    protected Instruction evaluate(Instruction wrapper) {
+        return InvocationFactory.invokeInterface(IMutableBox.class,
+                wrapper,
+                "getValue",
+                Factories.typeSpec(Object.class),
+                Collections.emptyList());
+    }
+
+    @Override
+    protected Class<?> getWrapperType() {
+        return IMutableBox.class;
+    }
+
+    @Override
+    protected Object getWrapper() {
+        return this.mutableBox;
+    }
 }

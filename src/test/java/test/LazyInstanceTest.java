@@ -1,5 +1,5 @@
 /*
- *      CodeProxy - Proxy Pattern written on top of CodeAPI! <https://github.com/JonathanxD/CodeProxy>
+ *      KoresProxy - Proxy Pattern written on top of Kores! <https://github.com/JonathanxD/KoresProxy>
  *
  *         The MIT License (MIT)
  *
@@ -27,11 +27,11 @@
  */
 package test;
 
-import com.github.jonathanxd.codeproxy.CodeProxy;
-import com.github.jonathanxd.codeproxy.InvokeSuper;
-import com.github.jonathanxd.codeproxy.gen.direct.DynamicLazyInstance;
-import com.github.jonathanxd.codeproxy.gen.direct.LazyInstance;
-import com.github.jonathanxd.codeproxy.handler.InvocationHandler;
+import com.github.jonathanxd.koresproxy.KoresProxy;
+import com.github.jonathanxd.koresproxy.InvokeSuper;
+import com.github.jonathanxd.koresproxy.gen.direct.DynamicLazyInstance;
+import com.github.jonathanxd.koresproxy.gen.direct.LazyInstance;
+import com.github.jonathanxd.koresproxy.handler.InvocationHandler;
 import com.github.jonathanxd.iutils.object.Lazy;
 
 import org.junit.Assert;
@@ -75,7 +75,7 @@ public class LazyInstanceTest {
 
         Lazy<Expensive> expensive = Lazy.lazy(() -> new Expensive(createInput("Hello")));
 
-        Entity entity = CodeProxy.newProxyInstance(new Class[0], new Object[0], builder ->
+        Entity entity = KoresProxy.newProxyInstance(new Class[0], new Object[0], builder ->
                 builder.classLoader(this.getClass().getClassLoader())
                         .addInterface(Entity.class)
                         .addCustom(new LazyInstance(expensive, Entity.class))
@@ -96,7 +96,7 @@ public class LazyInstanceTest {
 
         Lazy<Expensive> expensive = Lazy.lazy(() -> new Expensive(createInput("Hello")));
 
-        Entity entity = CodeProxy.newProxyInstance(new Class[0], new Object[0], builder ->
+        Entity entity = KoresProxy.newProxyInstance(new Class[0], new Object[0], builder ->
                 builder.classLoader(this.getClass().getClassLoader())
                         .addInterface(Entity.class)
                         .addCustom(new DynamicLazyInstance(expensive))

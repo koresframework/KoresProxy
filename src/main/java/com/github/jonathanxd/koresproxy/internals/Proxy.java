@@ -25,46 +25,18 @@
  *      OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  *      THE SOFTWARE.
  */
-package test;
+package com.github.jonathanxd.koresproxy.internals;
 
-import com.github.jonathanxd.koresproxy.KoresProxy;
-import com.github.jonathanxd.koresproxy.InvokeSuper;
+import java.lang.annotation.Documented;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-import org.junit.Assert;
-
-public class DefaultTest {
-
-    @org.junit.Test
-    public void test() {
-
-
-        Itf itf = (Itf) KoresProxy.newProxyInstance(this.getClass().getClassLoader(), Object.class, new Class[] { Itf.class }, (proxy, method, args, info) -> {
-
-            if(method.getName().equals("h"))
-                return 7;
-
-            return InvokeSuper.INVOKE_SUPER;
-        });
-
-        Assert.assertEquals("itf.h()", 7, itf.h());
-        Assert.assertEquals("itf.x()", "Hello", itf.x());
-
-    }
-
-    public class Hey extends Object {
-        @Override
-        protected void finalize() throws Throwable {
-            super.finalize();
-        }
-    }
-
-    public static interface Itf {
-        int h();
-
-        default String x() {
-            return "Hello";
-        }
-    }
-
-
+/**
+ * Marks the class as KoresProxy generated class.
+ */
+@Documented
+@Retention(RetentionPolicy.RUNTIME)
+@Target({})
+@interface Proxy {
 }

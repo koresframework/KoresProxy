@@ -25,46 +25,57 @@
  *      OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  *      THE SOFTWARE.
  */
-package test;
+package com.github.jonathanxd.koresproxy.gen.direct;
 
-import com.github.jonathanxd.koresproxy.KoresProxy;
-import com.github.jonathanxd.koresproxy.InvokeSuper;
+import java.lang.reflect.Method;
 
-import org.junit.Assert;
+/**
+ * Target element to be invoked.
+ */
+public final class Target {
 
-public class DefaultTest {
+    /**
+     * Default behavior of KoresProxy (delegate invocation handler)
+     */
+    public static final int DEFAULT_BEHAVIOR = -1;
 
-    @org.junit.Test
-    public void test() {
+    /**
+     * Invokes a method of current instance, not every custom supports it.
+     */
+    public static final int SELF = -2;
 
+    /**
+     * The target instance, this instance is extracted from {@link DirectToResolveMethod#instances}
+     * by index. To invoke self instance, use {@link Target#SELF}.
+     */
+    private final int instance;
 
-        Itf itf = (Itf) KoresProxy.newProxyInstance(this.getClass().getClassLoader(), Object.class, new Class[] { Itf.class }, (proxy, method, args, info) -> {
+    /**
+     * Target method to invoke. If the method is static, the instance will not be resolved using
+     * {@link #instance} index and the method will be invoked directly.
+     */
+    private final Method method;
 
-            if(method.getName().equals("h"))
-                return 7;
-
-            return InvokeSuper.INVOKE_SUPER;
-        });
-
-        Assert.assertEquals("itf.h()", 7, itf.h());
-        Assert.assertEquals("itf.x()", "Hello", itf.x());
-
+    public Target(int instance, Method method) {
+        this.instance = instance;
+        this.method = method;
     }
 
-    public class Hey extends Object {
-        @Override
-        protected void finalize() throws Throwable {
-            super.finalize();
-        }
+    /**
+     * Gets the instance index to resolve instance object.
+     *
+     * @return Instance index to resolve instance object.
+     */
+    public int getInstance() {
+        return this.instance;
     }
 
-    public static interface Itf {
-        int h();
-
-        default String x() {
-            return "Hello";
-        }
+    /**
+     * Gets method to invoke.
+     *
+     * @return Method to invoke.
+     */
+    public Method getMethod() {
+        return this.method;
     }
-
-
 }
