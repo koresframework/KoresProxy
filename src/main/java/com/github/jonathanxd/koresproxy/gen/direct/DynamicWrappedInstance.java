@@ -42,6 +42,8 @@ import com.github.jonathanxd.koresproxy.internals.Util;
 import com.github.jonathanxd.iutils.collection.Collections3;
 import com.github.jonathanxd.iutils.function.Predicates;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Collections;
@@ -102,8 +104,9 @@ public abstract class DynamicWrappedInstance extends SimpleWrappedInstance {
 
     class Gen implements CustomHandlerGenerator {
 
+        @NotNull
         @Override
-        public Instructions handle(Method target, MethodDeclaration methodDeclaration, GenEnv env) {
+        public Instructions handle(@NotNull Method target, @NotNull MethodDeclaration methodDeclaration, @NotNull GenEnv env) {
 
             if (Modifier.isStatic(target.getModifiers())
                     || !DynamicWrappedInstance.this.getDelegatePredicate().test(target)) {

@@ -34,6 +34,7 @@ import com.github.jonathanxd.koresproxy.ProxyData;
 import com.github.jonathanxd.koresproxy.handler.InvocationHandler;
 import com.github.jonathanxd.koresproxy.info.MethodInfo;
 
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Method;
@@ -65,6 +66,7 @@ public interface CustomGen {
      * @return Custom source, appended after {@link InvocationHandler#invoke(Object, MethodInfo,
      * Object[], ProxyData)} method.
      */
-    Instructions gen(Method target, MethodDeclaration methodDeclaration, @Nullable VariableDeclaration returnVariable);
+    @NotNull
+    Instructions gen(@NotNull Method target, @NotNull MethodDeclaration methodDeclaration, @Nullable VariableDeclaration returnVariable);
 
 }

@@ -43,6 +43,8 @@ import com.github.jonathanxd.kores.util.conversion.ConversionsKt;
 import com.github.jonathanxd.koresproxy.internals.Util;
 import com.github.jonathanxd.iutils.collection.Collections3;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
@@ -118,8 +120,9 @@ public interface DirectInvocationCustom extends Custom {
 
         class Gen implements CustomHandlerGenerator {
 
+            @NotNull
             @Override
-            public Instructions handle(Method target, MethodDeclaration methodDeclaration, GenEnv env) {
+            public Instructions handle(@NotNull Method target, @NotNull MethodDeclaration methodDeclaration, @NotNull GenEnv env) {
                 try {
                     Method declaredMethod = Util.getMethod(Static.this.getTarget(), target.getName(), target.getParameterTypes());
 
@@ -209,8 +212,9 @@ public interface DirectInvocationCustom extends Custom {
 
         class Gen implements CustomHandlerGenerator {
 
+            @NotNull
             @Override
-            public Instructions handle(Method target, MethodDeclaration methodDeclaration, GenEnv env) {
+            public Instructions handle(@NotNull Method target, @NotNull MethodDeclaration methodDeclaration, @NotNull GenEnv env) {
                 try {
                     Method method = Util.getMethod(Instance.this.getTarget().getClass(),
                             target.getName(), target.getParameterTypes());
@@ -360,8 +364,9 @@ public interface DirectInvocationCustom extends Custom {
 
         class Gen implements CustomHandlerGenerator {
 
+            @NotNull
             @Override
-            public Instructions handle(Method target, MethodDeclaration methodDeclaration, GenEnv env) {
+            public Instructions handle(@NotNull Method target, @NotNull MethodDeclaration methodDeclaration, @NotNull GenEnv env) {
                 try {
                     List<Object> targets = MultiInstanceResolved.this.getTargets();
                     ToIntFunction<Method> targetResolver = MultiInstanceResolved.this.getTargetResolver();

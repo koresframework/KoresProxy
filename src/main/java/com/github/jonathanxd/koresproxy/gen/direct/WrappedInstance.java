@@ -40,6 +40,8 @@ import com.github.jonathanxd.koresproxy.gen.GenEnv;
 import com.github.jonathanxd.koresproxy.internals.Util;
 import com.github.jonathanxd.iutils.collection.Collections3;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
@@ -95,8 +97,9 @@ public abstract class WrappedInstance extends SimpleWrappedInstance {
 
     class Gen implements CustomHandlerGenerator {
 
+        @NotNull
         @Override
-        public Instructions handle(Method target, MethodDeclaration methodDeclaration, GenEnv env) {
+        public Instructions handle(@NotNull Method target, @NotNull MethodDeclaration methodDeclaration, @NotNull GenEnv env) {
             try {
                 Method method = Util.getMethod(WrappedInstance.this.getTargetClass(),
                         target.getName(), target.getParameterTypes());

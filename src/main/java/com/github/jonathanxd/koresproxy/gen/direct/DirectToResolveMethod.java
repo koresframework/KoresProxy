@@ -190,8 +190,9 @@ public class DirectToResolveMethod implements DirectInvocationCustom {
 
     public class Gen implements CustomHandlerGenerator {
 
+        @NotNull
         @Override
-        public Instructions handle(Method target, MethodDeclaration methodDeclaration, GenEnv env) {
+        public Instructions handle(@NotNull Method target, @NotNull MethodDeclaration methodDeclaration, @NotNull GenEnv env) {
             List<Object> instances = DirectToResolveMethod.this.getInstances();
             Function<Method, Target> targetResolver = DirectToResolveMethod.this.getTargetResolver();
             IntFunction<Class<?>> typeResolver = DirectToResolveMethod.this.getTypeResolver();

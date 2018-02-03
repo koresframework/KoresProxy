@@ -41,6 +41,9 @@ import com.github.jonathanxd.kores.util.conversion.ConversionsKt;
 import com.github.jonathanxd.koresproxy.gen.CustomGen;
 import com.github.jonathanxd.koresproxy.info.MethodInfo;
 
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.stream.Collectors;
@@ -64,28 +67,33 @@ public final class InvokeSuper implements CustomGen {
     private InvokeSuper() {
     }
 
+    @NotNull
     @Override
-    public Instructions gen(Method target, MethodDeclaration methodDeclaration, VariableDeclaration returnVariable) {
+    public Instructions gen(@NotNull Method target,
+                            @NotNull MethodDeclaration methodDeclaration,
+                            @Nullable VariableDeclaration returnVariable) {
 
         MutableInstructions source = MutableInstructions.create();
 
-        Type returnType = methodDeclaration.getReturnType();
+        if (returnVariable != null) {
+            Type returnType = methodDeclaration.getReturnType();
 
-        Instruction invoke = InvocationFactory.invokeSpecial(
-                target.getDeclaringClass(), Access.SUPER, target.getName(), methodDeclaration.getTypeSpec(),
-                methodDeclaration.getParameters().stream().map(ConversionsKt::toVariableAccess).collect(Collectors.toList())
-        );
-
-
-        if (target.getReturnType() != Void.TYPE) {
-            invoke = Factories.setVariableValue(returnVariable.getType(), returnVariable.getName(),
-                    Factories.cast(returnType, Types.OBJECT, invoke)
+            Instruction invoke = InvocationFactory.invokeSpecial(
+                    target.getDeclaringClass(), Access.SUPER, target.getName(), methodDeclaration.getTypeSpec(),
+                    methodDeclaration.getParameters().stream().map(ConversionsKt::toVariableAccess).collect(Collectors.toList())
             );
-        }
 
-        source.add(Factories.ifStatement(Factories.checkTrue(Factories.isInstanceOf(
-                Factories.accessVariable(returnVariable), InvokeSuper.class
-        )), PartFactory.source(invoke)));
+
+            if (target.getReturnType() != Void.TYPE) {
+                invoke = Factories.setVariableValue(returnVariable.getType(), returnVariable.getName(),
+                        Factories.cast(returnType, Types.OBJECT, invoke)
+                );
+            }
+
+            source.add(Factories.ifStatement(Factories.checkTrue(Factories.isInstanceOf(
+                    Factories.accessVariable(returnVariable), InvokeSuper.class
+            )), PartFactory.source(invoke)));
+        }
 
         return source;
     }

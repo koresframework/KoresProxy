@@ -45,6 +45,8 @@ import com.github.jonathanxd.koresproxy.gen.GenEnv;
 import com.github.jonathanxd.koresproxy.internals.Util;
 import com.github.jonathanxd.iutils.collection.Collections3;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.List;
@@ -127,8 +129,9 @@ public class DirectToFunction implements DirectInvocationCustom {
 
     public class Gen implements CustomHandlerGenerator {
 
+        @NotNull
         @Override
-        public Instructions handle(Method target, MethodDeclaration methodDeclaration, GenEnv env) {
+        public Instructions handle(@NotNull Method target, @NotNull MethodDeclaration methodDeclaration, @NotNull GenEnv env) {
             List<Function<Object[], Object>> functions = DirectToFunction.this.getFunctions();
             ToIntFunction<Method> targetResolver = DirectToFunction.this.getFunctionResolver();
 

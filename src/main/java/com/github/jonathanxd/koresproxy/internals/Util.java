@@ -50,6 +50,7 @@ import com.github.jonathanxd.kores.type.KoresType;
 import com.github.jonathanxd.kores.type.Generic;
 import com.github.jonathanxd.kores.type.ImplicitKoresType;
 import com.github.jonathanxd.kores.util.conversion.ConversionsKt;
+import com.github.jonathanxd.koresproxy.Debug;
 import com.github.jonathanxd.koresproxy.ProxyData;
 import com.github.jonathanxd.koresproxy.gen.Custom;
 import com.github.jonathanxd.koresproxy.gen.CustomGen;
@@ -72,13 +73,6 @@ import java.util.stream.Collectors;
 import kotlin.collections.CollectionsKt;
 
 public class Util {
-
-    private static final boolean IGNORE_JAVA_MODULE_RULES;
-
-    static {
-        IGNORE_JAVA_MODULE_RULES =
-                Boolean.parseBoolean(System.getProperties().getProperty("koresProxy.ignore_module_rules", "false"));
-    }
 
     /**
      * {@code List<Class<? extends CustomHandlerGenerator>>}
@@ -230,7 +224,7 @@ public class Util {
     }
 
     public static boolean useModulesRules() {
-        return !Util.IGNORE_JAVA_MODULE_RULES && Util.isJava9OrSuperior();
+        return !Debug.isIgnoreJavaModuleRules() && Util.isJava9OrSuperior();
     }
 
     static Class<?> tryLoad(ClassLoader classLoader, BytecodeClass bytecodeClass) {

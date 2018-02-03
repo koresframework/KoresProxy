@@ -56,6 +56,7 @@ import com.github.jonathanxd.iutils.kt.EitherUtilKt;
 import com.github.jonathanxd.iutils.map.MapUtils;
 import com.github.jonathanxd.iutils.object.Try;
 
+import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -454,8 +455,9 @@ public class CustomsTest {
 
     public static class MyCustomHandler implements CustomHandlerGenerator {
 
+        @NotNull
         @Override
-        public Instructions handle(Method target, MethodDeclaration methodDeclaration, GenEnv env) {
+        public Instructions handle(@NotNull Method target, @NotNull MethodDeclaration methodDeclaration, @NotNull GenEnv env) {
             if (target.getName().equals("v")) {
                 env.setMayProceed(false);
                 env.setInvokeHandler(false);

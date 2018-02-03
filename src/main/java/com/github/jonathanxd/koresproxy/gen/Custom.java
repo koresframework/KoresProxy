@@ -29,6 +29,7 @@ package com.github.jonathanxd.koresproxy.gen;
 
 import com.github.jonathanxd.kores.Instruction;
 import com.github.jonathanxd.kores.common.VariableRef;
+import com.github.jonathanxd.koresproxy.internals.Util;
 
 import java.lang.reflect.Method;
 import java.util.Collections;
@@ -70,7 +71,6 @@ public interface Custom {
         return true;
     }
 
-
     /**
      * Returns list of custom generators.
      *
@@ -111,6 +111,16 @@ public interface Custom {
         }
 
         /**
+         * Gets field name of {@code property}.
+         *
+         * @param property Property to get field name.
+         * @return Field name of {@code property}.
+         */
+        public static String getFieldName(Property property) {
+            return Util.getAdditionalPropertyFieldName(property.spec);
+        }
+
+        /**
          * @see #spec
          */
         public VariableRef getSpec() {
@@ -123,6 +133,16 @@ public interface Custom {
         public Optional<Instruction> getInitialize() {
             return Optional.ofNullable(this.initialize);
         }
+
+        /**
+         * Gets field name of {@code this} property.
+         *
+         * @return Field name of {@code this} property.
+         */
+        public String getFieldName() {
+            return Util.getAdditionalPropertyFieldName(this.spec);
+        }
+
     }
 
 }

@@ -36,6 +36,8 @@ import com.github.jonathanxd.koresproxy.ProxyData;
 import com.github.jonathanxd.koresproxy.handler.InvocationHandler;
 import com.github.jonathanxd.koresproxy.info.MethodInfo;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.lang.reflect.Method;
 
 /**
@@ -70,6 +72,7 @@ public interface CustomHandlerGenerator {
      *                          class.
      * @return Custom source, appended at the start of proxy method.
      */
-    Instructions handle(Method target, MethodDeclaration methodDeclaration, GenEnv env);
+    @NotNull
+    Instructions handle(@NotNull Method target, @NotNull MethodDeclaration methodDeclaration, @NotNull GenEnv env);
 
 }

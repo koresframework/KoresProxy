@@ -58,6 +58,7 @@ import com.github.jonathanxd.kores.literal.Literals;
 import com.github.jonathanxd.kores.type.KoresTypes;
 import com.github.jonathanxd.kores.type.ImplicitKoresType;
 import com.github.jonathanxd.kores.util.conversion.ConversionsKt;
+import com.github.jonathanxd.koresproxy.Debug;
 import com.github.jonathanxd.koresproxy.InvokeSuper;
 import com.github.jonathanxd.koresproxy.ProxyData;
 import com.github.jonathanxd.koresproxy.gen.Custom;
@@ -118,13 +119,7 @@ public class ProxyGenerator {
 
     private static final Map<ProxyData, Class<?>> CACHE = Collections.synchronizedMap(new WeakValueHashMap<>());
 
-    private static final boolean SAVE_PROXIES;
     private static long PROXY_COUNT = 0;
-
-    static {
-        Object property = System.getProperties().getProperty("koresProxy.saveproxies");
-        SAVE_PROXIES = property != null && property.equals("true");
-    }
 
     /**
      * Returns true if object {@code o} is a KoresProxy generated proxy.
@@ -263,7 +258,7 @@ public class ProxyGenerator {
         if (ImplicitKoresType.compareTo(superType, Types.OBJECT) == 0
                 || ImplicitKoresType.getPackageName(superType).startsWith("java.")
                 || Util.useModulesRules()) {
-            package_ = "com.github.jonathanxd.koresProxy.generated";
+            package_ = "com.github.jonathanxd.koresproxy.generated";
         } else {
             package_ = ImplicitKoresType.getPackageName(superType);
             packagePrivate = true;
@@ -552,10 +547,10 @@ public class ProxyGenerator {
                     methodInfoAccess,
                     cacheField) {
                 @Override
-                public void callCustomGenerators(@Nullable VariableDeclaration returnVariable, MutableInstructions source) {
+                public void callCustomGenerators(@Nullable VariableDeclaration returnVariable, MutableInstructions instructions) {
                     for (Class<? extends CustomGen> customGenClass : this.getProxyData().getCustomGeneratorsView()) {
                         CustomGen customGen = Util.getInstance(customGenClass);
-                        source.addAll(customGen.gen(this.getMethod(), this.getMethodDeclaration(), returnVariable));
+                        instructions.addAll(customGen.gen(this.getMethod(), this.getMethodDeclaration(), returnVariable));
                     }
                 }
             };
@@ -628,17 +623,17 @@ public class ProxyGenerator {
     }
 
     /**
-     * Saves the proxy classes to {@code gen/koresProxy/} directory.
+     * Saves the proxy classes to save directory.
      */
     private static void saveProxy(BytecodeClass bytecodeClass) {
         try {
 
-            if (!SAVE_PROXIES)
+            if (!Debug.isSaveProxies())
                 return;
 
             TypeDeclaration typeDeclaration = (TypeDeclaration) bytecodeClass.getDeclaration();
 
-            String canonicalName = "gen/koresProxy/" + typeDeclaration.getCanonicalName();
+            String canonicalName = Debug.getSaveDirectory() + typeDeclaration.getCanonicalName();
 
             canonicalName = canonicalName.replace('.', '/');
 
