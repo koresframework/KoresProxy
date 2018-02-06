@@ -27,13 +27,19 @@
  */
 package com.github.jonathanxd.koresproxy.gen.direct;
 
+import com.github.jonathanxd.kores.Instruction;
 import com.github.jonathanxd.kores.Instructions;
+import com.github.jonathanxd.kores.KoresPartKt;
 import com.github.jonathanxd.kores.base.Access;
 import com.github.jonathanxd.kores.base.InvokeType;
+import com.github.jonathanxd.kores.base.KoresParameter;
 import com.github.jonathanxd.kores.base.MethodDeclaration;
+import com.github.jonathanxd.kores.base.VariableAccess;
+import com.github.jonathanxd.kores.common.Commons;
 import com.github.jonathanxd.kores.common.VariableRef;
 import com.github.jonathanxd.kores.factory.Factories;
 import com.github.jonathanxd.kores.factory.InvocationFactory;
+import com.github.jonathanxd.kores.helper.Predefined;
 import com.github.jonathanxd.kores.util.conversion.ConversionsKt;
 import com.github.jonathanxd.koresproxy.gen.CustomHandlerGenerator;
 import com.github.jonathanxd.koresproxy.gen.GenEnv;
@@ -85,6 +91,8 @@ public abstract class WrappedInstance extends SimpleWrappedInstance {
             Util.getMethod(this.getTargetClass(), m.getName(), m.getParameterTypes());
             return false;
         } catch (NoSuchMethodException ignored) {
+            if (Util.isEquals(m) || Util.isHashCode(m) || Util.isToString(m))
+                return false;
         }
 
         return true;
@@ -97,14 +105,19 @@ public abstract class WrappedInstance extends SimpleWrappedInstance {
 
     class Gen implements CustomHandlerGenerator {
 
+        private Instruction access() {
+            VariableRef fprop1 = WrappedInstance.this.getAdditionalProperties().get(0).getSpec();
+
+            return WrappedInstance.this.evaluate(Factories.accessThisField(fprop1.getType(),
+                    Util.getAdditionalPropertyFieldName(fprop1)));
+        }
+
         @NotNull
         @Override
         public Instructions handle(@NotNull Method target, @NotNull MethodDeclaration methodDeclaration, @NotNull GenEnv env) {
             try {
                 Method method = Util.getMethod(WrappedInstance.this.getTargetClass(),
                         target.getName(), target.getParameterTypes());
-
-                VariableRef fprop1 = WrappedInstance.this.getAdditionalProperties().get(0).getSpec();
 
                 env.setMayProceed(false);
                 env.setInvokeHandler(false);
@@ -130,8 +143,7 @@ public abstract class WrappedInstance extends SimpleWrappedInstance {
                                 invokeType.isStatic()
                                         ? Access.STATIC
                                         : Factories.cast(Object.class, type,
-                                        WrappedInstance.this.evaluate(Factories.accessThisField(fprop1.getType(),
-                                                Util.getAdditionalPropertyFieldName(fprop1)))),
+                                        this.access()),
                                 method.getName(),
                                 ConversionsKt.getTypeSpec(method),
                                 ConversionsKt.getAccess(methodDeclaration.getParameters())
@@ -140,6 +152,15 @@ public abstract class WrappedInstance extends SimpleWrappedInstance {
 
 
             } catch (NoSuchMethodException ignored) {
+                if (Util.isEquals(target)) {
+                    KoresParameter p1 = methodDeclaration.getParameters().get(0);
+                    VariableAccess access = Factories.accessVariable(p1.getType(), p1.getName());
+                    return Instructions.fromPart(Commons.invokeObjectsEquals(this.access(), access));
+                } else if (Util.isToString(target)) {
+                    return Instructions.fromPart(Commons.invokeObjectsToString(this.access()));
+                } else if (Util.isHashCode(target)) {
+                    return Instructions.fromPart(Commons.invokeHashCode(this.access()));
+                }
 
             }
 

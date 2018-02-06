@@ -286,11 +286,21 @@ public class CustomsTest {
             String hello() {
                 return "A";
             }
+
+            @Override
+            public String toString() {
+                return this.hello();
+            }
         }
         class BGreeter extends Greeter {
             @Override
             String hello() {
                 return "B";
+            }
+
+            @Override
+            public String toString() {
+                return this.hello();
             }
         }
 
@@ -303,12 +313,17 @@ public class CustomsTest {
                         .addCustom(new MutableInstance(myGreeter, Greeter.class))
                         .addCustomGenerator(InvokeSuper.class));
 
-        myGreeter.set(new AGreeter());
-
+        AGreeter aGreeter = new AGreeter();
+        myGreeter.set(aGreeter);
         Assert.assertEquals("A", greeter.hello());
+        Assert.assertEquals(aGreeter.hashCode(), greeter.hashCode());
+        Assert.assertEquals(aGreeter.toString(), greeter.toString());
 
-        myGreeter.set(new BGreeter());
+        BGreeter bGreeter = new BGreeter();
+        myGreeter.set(bGreeter);
         Assert.assertEquals("B", greeter.hello());
+        Assert.assertEquals(bGreeter.hashCode(), greeter.hashCode());
+        Assert.assertEquals(bGreeter.toString(), greeter.toString());
     }
 
     public interface A {

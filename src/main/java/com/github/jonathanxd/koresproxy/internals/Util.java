@@ -304,4 +304,16 @@ public class Util {
             }
         }
     }
+
+    public static boolean isHashCode(Method m) {
+        return m.getName().equals("hashCode") && m.getParameterCount() == 0 && m.getReturnType().equals(Integer.TYPE);
+    }
+
+    public static boolean isToString(Method m) {
+        return m.getName().equals("toString") && m.getParameterCount() == 0 && m.getReturnType().equals(String.class);
+    }
+
+    public static boolean isEquals(Method m) {
+        return m.getName().equals("equals") && m.getParameterCount() == 1 && m.getReturnType().equals(Boolean.TYPE);
+    }
 }
