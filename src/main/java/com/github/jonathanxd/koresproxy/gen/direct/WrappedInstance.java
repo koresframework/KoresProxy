@@ -153,13 +153,25 @@ public abstract class WrappedInstance extends SimpleWrappedInstance {
 
             } catch (NoSuchMethodException ignored) {
                 if (Util.isEquals(target)) {
+                    env.setMayProceed(false);
+                    env.setInvokeHandler(false);
+
                     KoresParameter p1 = methodDeclaration.getParameters().get(0);
                     VariableAccess access = Factories.accessVariable(p1.getType(), p1.getName());
-                    return Instructions.fromPart(Commons.invokeObjectsEquals(this.access(), access));
+                    return Instructions.fromPart(Factories.returnValue(Boolean.TYPE,
+                            Commons.invokeObjectsEquals(this.access(), access)));
                 } else if (Util.isToString(target)) {
-                    return Instructions.fromPart(Commons.invokeObjectsToString(this.access()));
+                    env.setMayProceed(false);
+                    env.setInvokeHandler(false);
+
+                    return Instructions.fromPart(Factories.returnValue(String.class,
+                            Commons.invokeObjectsToString(this.access())));
                 } else if (Util.isHashCode(target)) {
-                    return Instructions.fromPart(Commons.invokeHashCode(this.access()));
+                    env.setMayProceed(false);
+                    env.setInvokeHandler(false);
+
+                    return Instructions.fromPart(Factories.returnValue(Integer.TYPE,
+                            Commons.invokeHashCode(this.access())));
                 }
 
             }
