@@ -4,7 +4,7 @@ plugins {
 }
 
 group 'com.github.jonathanxd'
-version '2.5.4-SNAPSHOT'
+version '2.5.5-SNAPSHOT'
 
 // Setup
 
@@ -34,9 +34,9 @@ repositories {
     maven { url "https://jitpack.io" }
 }
 
-allprojects{
+allprojects {
     dependencies {
-        compile 'com.github.JonathanxD.Kores:Kores:4.0.0.45-beta'
+        compile 'com.github.JonathanxD.Kores:Kores:4.0.0.48-beta'
         compile 'com.github.JonathanxD.Kores-BytecodeWriter:Kores-BytecodeWriter:4.0.0.36-beta-bytecode'
 
         testCompile group: 'junit', name:'junit', version: '4.12'

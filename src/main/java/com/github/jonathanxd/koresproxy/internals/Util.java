@@ -104,7 +104,8 @@ public class Util {
                                 Class[].class,
                                 Collections.singletonList(Literals.INT(m.getParameterCount())),
                                 Arrays.stream(m.getParameterTypes()).map(Literals::CLASS).collect(Collectors.toList())
-                        )
+                        ),
+                        Literals.BOOLEAN(m.isDefault())
                 )
         );
     }

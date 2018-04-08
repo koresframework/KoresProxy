@@ -57,7 +57,8 @@ public interface InvocationHandler {
      * @return Value to return in proxy method.
      * @throws Throwable If penguins try to swim in lava.
      */
-    Object invoke(Object instance, MethodInfo methodInfo, Object[] args, ProxyData proxyData) throws Throwable;
+    Object invoke(Object instance, MethodInfo methodInfo, Object[] args,
+                  ProxyData proxyData) throws Throwable;
 
     enum Info {
         ;

@@ -57,6 +57,9 @@ import java.util.stream.Collectors;
  * ProxyData.Builder}. Factories which does not provide a way to modify {@link ProxyData.Builder}
  * already have it added to the {@link ProxyData} (see {@link KoresProxy} source).
  *
+ * @apiNote Since 2.5.5, you should use {@link MethodInfo#invokeSuper(Object, Object...)} (or any
+ * variant) or {@link MethodInfo#resolveSpecial(Class, Class)} to invoke super methods from {@link
+ * com.github.jonathanxd.koresproxy.handler.InvocationHandler}.
  * @see com.github.jonathanxd.koresproxy.handler.InvocationHandler#invoke(Object, MethodInfo,
  * Object[], ProxyData)
  */
@@ -79,15 +82,18 @@ public final class InvokeSuper implements CustomGen {
             Type returnType = methodDeclaration.getReturnType();
 
             Instruction invoke = InvocationFactory.invokeSpecial(
-                    target.getDeclaringClass(), Access.SUPER, target.getName(), methodDeclaration.getTypeSpec(),
-                    methodDeclaration.getParameters().stream().map(ConversionsKt::toVariableAccess).collect(Collectors.toList())
+                    target.getDeclaringClass(), Access.SUPER, target.getName(),
+                    methodDeclaration.getTypeSpec(),
+                    methodDeclaration.getParameters().stream().map(ConversionsKt::toVariableAccess)
+                            .collect(Collectors.toList())
             );
 
 
             if (target.getReturnType() != Void.TYPE) {
-                invoke = Factories.setVariableValue(returnVariable.getType(), returnVariable.getName(),
-                        Factories.cast(returnType, Types.OBJECT, invoke)
-                );
+                invoke = Factories
+                        .setVariableValue(returnVariable.getType(), returnVariable.getName(),
+                                Factories.cast(returnType, Types.OBJECT, invoke)
+                        );
             }
 
             source.add(Factories.ifStatement(Factories.checkTrue(Factories.isInstanceOf(

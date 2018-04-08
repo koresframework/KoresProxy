@@ -27,9 +27,9 @@
  */
 package com.github.jonathanxd.koresproxy.info;
 
-import com.github.jonathanxd.kores.base.TypeSpec;
 import com.github.jonathanxd.iutils.collection.Collections3;
 import com.github.jonathanxd.iutils.exception.RethrowException;
+import com.github.jonathanxd.kores.base.TypeSpec;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -54,7 +54,12 @@ public final class MethodInfo {
      * Specification of constructor.
      */
     public static TypeSpec CONSTRUCTOR_SPEC = new TypeSpec(Void.TYPE,
-            Collections3.listOf(MethodHandles.Lookup.class, Class.class, String.class, Class.class, Class[].class));
+            Collections3.listOf(MethodHandles.Lookup.class,
+                    Class.class,
+                    String.class,
+                    Class.class,
+                    Class[].class,
+                    Boolean.TYPE));
 
     /**
      * Lookup created in proxy context.
@@ -82,6 +87,13 @@ public final class MethodInfo {
     private final List<Class<?>> parameterTypes;
 
     /**
+     * Whether the method has default implementation or not.
+     *
+     * @since 2.5.5
+     */
+    private final boolean hasDefaultImplementation;
+
+    /**
      * Method parameters (cached array).
      */
     private final Class<?>[] parameterTypesArray;
@@ -90,7 +102,8 @@ public final class MethodInfo {
                       Class<?> declaringClass,
                       String name,
                       Class<?> returnType,
-                      Class<?>[] parameterTypes) {
+                      Class<?>[] parameterTypes,
+                      boolean hasDefaultImplementation) {
 
         this.lookup = lookup;
         this.declaringClass = declaringClass;
@@ -98,6 +111,7 @@ public final class MethodInfo {
         this.returnType = returnType;
         this.parameterTypes = Collections.unmodifiableList(Arrays.asList(parameterTypes));
         this.parameterTypesArray = parameterTypes.clone();
+        this.hasDefaultImplementation = hasDefaultImplementation;
     }
 
     /**
@@ -146,15 +160,26 @@ public final class MethodInfo {
     }
 
     /**
+     * Returns whether method has default implementation or not.
+     *
+     * @return Whether method has default implementation or not.
+     * @since 2.5.5
+     */
+    public boolean hasDefaultImplementation() {
+        return this.hasDefaultImplementation;
+    }
+
+    /**
      * Resolves the {@link MethodHandle} of this method in {@code target}.
      *
      * @param target Target class to find method.
      * @return Resolved method handle, or null if cannot be found.
      */
     public @Nullable
-    MethodHandle resolve(Class<?> target) {
+    MethodHandle resolve(@NotNull Class<?> target) {
         try {
-            return this.lookup.findVirtual(target, this.name, MethodType.methodType(returnType, parameterTypesArray));
+            return this.lookup.findVirtual(target, this.name,
+                    MethodType.methodType(returnType, parameterTypesArray));
         } catch (NoSuchMethodException | IllegalAccessException e) {
             return null;
         }
@@ -167,9 +192,46 @@ public final class MethodInfo {
      * @return Resolved method handle, or throw exception if cannot be found.
      */
     public @NotNull
-    MethodHandle resolveOrFail(Class<?> target) {
+    MethodHandle resolveOrFail(@NotNull Class<?> target) {
         try {
-            return this.lookup.findVirtual(target, this.name, MethodType.methodType(returnType, parameterTypesArray));
+            return this.lookup.findVirtual(target, this.name,
+                    MethodType.methodType(returnType, parameterTypesArray));
+        } catch (NoSuchMethodException | IllegalAccessException e) {
+            throw RethrowException.rethrow(e);
+        }
+    }
+
+    /**
+     * Resolves the {@link MethodHandle} of this method in {@code target}.
+     *
+     * @param target       Target class to find method.
+     * @param specialClass Proposed class to perform special invocation.
+     * @return Resolved method handle, or null if cannot be found.
+     */
+    public @Nullable
+    MethodHandle resolveSpecial(@NotNull Class<?> target, @NotNull Class<?> specialClass) {
+        try {
+            return this.lookup.findSpecial(target, this.name,
+                    MethodType.methodType(returnType, parameterTypesArray),
+                    specialClass);
+        } catch (NoSuchMethodException | IllegalAccessException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Resolves the {@link MethodHandle} of this method in {@code target}.
+     *
+     * @param target       Target class to find method.
+     * @param specialClass Proposed class to perform special invocation.
+     * @return Resolved method handle, or throw exception if cannot be found.
+     */
+    public @NotNull
+    MethodHandle resolveSpecialOrFail(@NotNull Class<?> target, @NotNull Class<?> specialClass) {
+        try {
+            return this.lookup.findSpecial(target, this.name,
+                    MethodType.methodType(returnType, parameterTypesArray),
+                    specialClass);
         } catch (NoSuchMethodException | IllegalAccessException e) {
             throw RethrowException.rethrow(e);
         }
@@ -182,9 +244,10 @@ public final class MethodInfo {
      * @return Resolved method handle, or null if cannot be found.
      */
     public @Nullable
-    MethodHandle resolveSpecial(Class<?> target, Class<?> specialClass) {
+    MethodHandle resolveStatic(@NotNull Class<?> target) {
         try {
-            return this.lookup.findSpecial(target, this.name, MethodType.methodType(returnType, parameterTypesArray), specialClass);
+            return this.lookup.findStatic(target, this.name,
+                    MethodType.methodType(returnType, parameterTypesArray));
         } catch (NoSuchMethodException | IllegalAccessException e) {
             return null;
         }
@@ -197,39 +260,10 @@ public final class MethodInfo {
      * @return Resolved method handle, or throw exception if cannot be found.
      */
     public @NotNull
-    MethodHandle resolveSpecialOrFail(Class<?> target, Class<?> specialClass) {
+    MethodHandle resolveStaticOrFail(@NotNull Class<?> target) {
         try {
-            return this.lookup.findSpecial(target, this.name, MethodType.methodType(returnType, parameterTypesArray), specialClass);
-        } catch (NoSuchMethodException | IllegalAccessException e) {
-            throw RethrowException.rethrow(e);
-        }
-    }
-
-    /**
-     * Resolves the {@link MethodHandle} of this method in {@code target}.
-     *
-     * @param target Target class to find method.
-     * @return Resolved method handle, or null if cannot be found.
-     */
-    public @Nullable
-    MethodHandle resolveStatic(Class<?> target) {
-        try {
-            return this.lookup.findStatic(target, this.name, MethodType.methodType(returnType, parameterTypesArray));
-        } catch (NoSuchMethodException | IllegalAccessException e) {
-            return null;
-        }
-    }
-
-    /**
-     * Resolves the {@link MethodHandle} of this method in {@code target}.
-     *
-     * @param target Target class to find method.
-     * @return Resolved method handle, or throw exception if cannot be found.
-     */
-    public @NotNull
-    MethodHandle resolveStaticOrFail(Class<?> target) {
-        try {
-            return this.lookup.findStatic(target, this.name, MethodType.methodType(returnType, parameterTypesArray));
+            return this.lookup.findStatic(target, this.name,
+                    MethodType.methodType(returnType, parameterTypesArray));
         } catch (NoSuchMethodException | IllegalAccessException e) {
             throw RethrowException.rethrow(e);
         }
@@ -242,7 +276,7 @@ public final class MethodInfo {
      * @return Resolve method or null if method cannot be found.
      */
     public @Nullable
-    Method resolveToReflect(Class<?> target) {
+    Method resolveToReflect(@NotNull Class<?> target) {
         try {
             Method method = target.getMethod(this.getName(), this.parameterTypesArray);
 
@@ -262,7 +296,7 @@ public final class MethodInfo {
      * @return Resolve method or throw exception if method cannot be found.
      */
     public @NotNull
-    Method resolveToReflectOrFail(Class<?> target) {
+    Method resolveToReflectOrFail(@NotNull Class<?> target) {
         try {
             Method method = target.getMethod(this.getName(), this.parameterTypesArray);
 
@@ -275,4 +309,60 @@ public final class MethodInfo {
         }
     }
 
+    /**
+     * Invokes super method of {@code target}. This method resolves the {@code special} {@link
+     * MethodHandle} of this method with {@code target} as declaring class and {@code specialClass}
+     * as the proposed class to invoke the method.
+     *
+     * @param target       Target method which declared the method.
+     * @param specialClass Proposed class to invoke method specially.
+     * @param instance     Instance to use to invoke.
+     * @param arguments    Arguments of method.
+     * @return Result of invocation.
+     * @throws Throwable Forwarded exception.
+     * @since 2.5.5
+     */
+    public @Nullable
+    Object invokeSuper(@NotNull Class<?> target,
+                       @NotNull Class<?> specialClass,
+                       @NotNull Object instance,
+                       @NotNull Object... arguments) throws Throwable {
+        return this.resolveSpecialOrFail(target, specialClass).bindTo(instance)
+                .invokeWithArguments(arguments);
+    }
+
+    /**
+     * Invokes super method of {@code target}. This method resolves the {@code special} {@link
+     * MethodHandle} of this method with {@code target} as declaring class and {@code instance
+     * class} as the proposed class to invoke the method.
+     *
+     * @param target    Target method which declared the method.
+     * @param instance  Instance to use to invoke.
+     * @param arguments Arguments of method.
+     * @return Result of invocation.
+     * @throws Throwable Forwarded exception.
+     * @since 2.5.5
+     */
+    public @Nullable
+    Object invokeSuper(@NotNull Class<?> target,
+                       @NotNull Object instance,
+                       @NotNull Object... arguments) throws Throwable {
+        return this.invokeSuper(target, instance.getClass(), instance, arguments);
+    }
+
+    /**
+     * Invokes super method of {@code method declaring class}. This method resolves the {@code
+     * special} {@link MethodHandle} of this method with {@link #getDeclaringClass()} as declaring
+     * class and {@code instance class} as the proposed class to invoke the method.
+     *
+     * @param instance  Instance to use to invoke.
+     * @param arguments Arguments of method.
+     * @return Result of invocation.
+     * @throws Throwable Forwarded exception.
+     * @since 2.5.5
+     */
+    public @Nullable
+    Object invokeSuper(@NotNull Object instance, @NotNull Object... arguments) throws Throwable {
+        return this.invokeSuper(this.getDeclaringClass(), instance.getClass(), instance, arguments);
+    }
 }

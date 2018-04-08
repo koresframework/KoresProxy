@@ -27,6 +27,7 @@
  */
 package com.github.jonathanxd.koresproxy;
 
+import com.github.jonathanxd.iutils.collection.Collections3;
 import com.github.jonathanxd.koresproxy.gen.Custom;
 import com.github.jonathanxd.koresproxy.gen.CustomGen;
 import com.github.jonathanxd.koresproxy.gen.CustomHandlerGenerator;
@@ -61,7 +62,7 @@ public class ProxyData {
     /**
      * Interfaces which proxy implements.
      */
-    private final Class<?>[] interfaces;
+    private final List<? extends Class<?>> interfaces;
 
     /**
      * Super class of proxy class. The features is very limited, if proxy system has access to
@@ -95,18 +96,26 @@ public class ProxyData {
      */
     private final List<Custom> customView;
 
-    public ProxyData(ClassLoader classLoader, Class<?>[] interfaces, Class<?> superClass,
+    public ProxyData(ClassLoader classLoader, List<? extends Class<?>> interfaces, Class<?> superClass,
                      InvocationHandler handler,
                      List<Class<? extends CustomHandlerGenerator>> customHandlerGenerators,
                      List<Class<? extends CustomGen>> customGenerators,
                      List<Custom> customList) {
         this.classLoader = classLoader;
-        this.interfaces = interfaces;
+        this.interfaces = Collections.unmodifiableList(interfaces);
         this.superClass = superClass;
         this.handler = handler;
         this.customHandlerGeneratorsView = Collections.unmodifiableList(customHandlerGenerators);
         this.customGeneratorsView = Collections.unmodifiableList(customGenerators);
         this.customView = Collections.unmodifiableList(customList);
+    }
+
+    public ProxyData(ClassLoader classLoader, Class<?>[] interfaces, Class<?> superClass,
+                     InvocationHandler handler,
+                     List<Class<? extends CustomHandlerGenerator>> customHandlerGenerators,
+                     List<Class<? extends CustomGen>> customGenerators,
+                     List<Custom> customList) {
+        this(classLoader, Collections3.listOf(interfaces), superClass, handler, customHandlerGenerators, customGenerators, customList);
     }
 
     /**
@@ -119,8 +128,15 @@ public class ProxyData {
     /**
      * Gets the interfaces of proxy class.
      */
+    public List<? extends Class<?>> getInterfaceList() {
+        return this.interfaces;
+    }
+
+    /**
+     * Gets the interfaces of proxy class.
+     */
     public Class<?>[] getInterfaces() {
-        return this.interfaces.clone();
+        return this.getInterfaceList().toArray(new Class[0]);
     }
 
     /**
@@ -237,7 +253,7 @@ public class ProxyData {
         private ClassLoader classLoader;
         private List<Class<?>> interfaces = new ArrayList<>();
         private Class<?> superClass = Object.class;
-        private InvocationHandler invocationHandler;
+        private InvocationHandler invocationHandler = InvocationHandler.NULL;
         private List<Class<? extends CustomHandlerGenerator>> customHandlerGenerators = new ArrayList<>();
         private List<Class<? extends CustomGen>> customGens = new ArrayList<>();
         private List<Custom> customs = new ArrayList<>();
@@ -246,12 +262,10 @@ public class ProxyData {
         }
 
         Builder(ProxyData defaults) {
-            this.interfaces = new ArrayList<>();
+            this.interfaces = new ArrayList<>(defaults.getInterfaceList());
             this.customHandlerGenerators = new ArrayList<>();
             this.customGens = new ArrayList<>();
-
             this.classLoader = defaults.getClassLoader();
-            Collections.addAll(this.interfaces, defaults.getInterfaces());
             this.superClass = defaults.getSuperClass();
             this.invocationHandler = defaults.getHandler();
             this.customHandlerGenerators = new ArrayList<>(defaults.getCustomHandlerGeneratorsView());
@@ -279,6 +293,20 @@ public class ProxyData {
         public Builder classLoader(ClassLoader classLoader) {
             this.classLoader = classLoader;
             return this;
+        }
+
+        /**
+         * Sets {@link ProxyData#interfaces} to a list with all elements of {@code interfaces}.
+         */
+        public Builder interfaces(Class<?> itf) {
+            return this.interfaces(Collections.singletonList(itf));
+        }
+
+        /**
+         * Sets {@link ProxyData#interfaces} to a list with all elements of {@code interfaces}.
+         */
+        public Builder interfaces(Class<?>... interfaces) {
+            return this.interfaces(Collections3.listOf(interfaces));
         }
 
         /**

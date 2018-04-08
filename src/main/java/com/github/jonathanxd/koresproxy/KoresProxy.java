@@ -51,6 +51,19 @@ public class KoresProxy {
      * Generate new proxy instance based on {@link ProxyData}.
      *
      * @param <T>      Type of proxy.
+     * @param operator Operator that applies definitions to {@link ProxyData.Builder}.
+     * @return Proxy instance.
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> T newProxyInstance(UnaryOperator<ProxyData.Builder> operator) {
+        return (T) ProxyGenerator.create(operator.apply(ProxyData.Builder.builder()).build(),
+                                         new Class[0], new Object[0]);
+    }
+
+    /**
+     * Generate new proxy instance based on {@link ProxyData}.
+     *
+     * @param <T>      Type of proxy.
      * @param argTypes Types of arguments of constructor of {@code superClass}.
      * @param args     Arguments to pass to constructor of {@code superClass}
      * @param operator Operator that applies definitions to {@link ProxyData.Builder}.
@@ -60,7 +73,8 @@ public class KoresProxy {
     public static <T> T newProxyInstance(Class<?>[] argTypes,
                                          Object[] args,
                                          UnaryOperator<ProxyData.Builder> operator) {
-        return (T) ProxyGenerator.create(operator.apply(ProxyData.Builder.builder()).build(), argTypes, args);
+        return (T) ProxyGenerator.create(operator.apply(ProxyData.Builder.builder()).build(),
+                                         argTypes, args);
     }
 
     /**
@@ -84,9 +98,11 @@ public class KoresProxy {
                                          InvocationHandler invocationHandler,
                                          Class<?>[] argTypes,
                                          Object[] args) {
-        return (T) ProxyGenerator.create(new ProxyData(classLoader, interfaces, superClass, invocationHandler,
-                new ArrayList<>(DEFAULT_CUSTOM_HANDLERS), new ArrayList<>(DEFAULT_CUSTOM_GENS),
-                new ArrayList<>(DEFAULT_CUSTOMS)), argTypes, args);
+        return (T) ProxyGenerator.create(
+                new ProxyData(classLoader, interfaces, superClass, invocationHandler,
+                              new ArrayList<>(DEFAULT_CUSTOM_HANDLERS),
+                              new ArrayList<>(DEFAULT_CUSTOM_GENS),
+                              new ArrayList<>(DEFAULT_CUSTOMS)), argTypes, args);
     }
 
     /**
@@ -106,7 +122,8 @@ public class KoresProxy {
                                          Class<T> superClass,
                                          Class<?>[] interfaces,
                                          InvocationHandler invocationHandler) {
-        return KoresProxy.newProxyInstance(classLoader, superClass, interfaces, invocationHandler, new Class[0], new Object[0]);
+        return KoresProxy.newProxyInstance(classLoader, superClass, interfaces, invocationHandler,
+                                           new Class[0], new Object[0]);
     }
 
     /**
@@ -121,7 +138,8 @@ public class KoresProxy {
     public static Object newProxyInstance(ClassLoader classLoader,
                                           Class<?>[] interfaces,
                                           InvocationHandler invocationHandler) {
-        return KoresProxy.newProxyInstance(classLoader, Object.class, interfaces, invocationHandler);
+        return KoresProxy.newProxyInstance(classLoader, Object.class, interfaces,
+                                           invocationHandler);
     }
 
     /**
@@ -142,7 +160,8 @@ public class KoresProxy {
                                          InvocationHandler invocationHandler,
                                          Class<?>[] argTypes,
                                          Object[] args) {
-        return KoresProxy.newProxyInstance(classLoader, superClass, new Class[0], invocationHandler, argTypes, args);
+        return KoresProxy.newProxyInstance(classLoader, superClass, new Class[0], invocationHandler,
+                                           argTypes, args);
     }
 
     /**
@@ -155,8 +174,10 @@ public class KoresProxy {
      * @param <T>               Type of proxy.
      * @return Proxy instance.
      */
-    public static <T> T newProxyInstance(ClassLoader classLoader, Class<T> superClass, InvocationHandler invocationHandler) {
-        return KoresProxy.newProxyInstance(classLoader, superClass, new Class[0], invocationHandler);
+    public static <T> T newProxyInstance(ClassLoader classLoader, Class<T> superClass,
+                                         InvocationHandler invocationHandler) {
+        return KoresProxy.newProxyInstance(classLoader, superClass, new Class[0],
+                                           invocationHandler);
     }
 
     /**
