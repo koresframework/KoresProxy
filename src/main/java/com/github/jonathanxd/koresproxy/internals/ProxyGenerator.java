@@ -467,6 +467,8 @@ public class ProxyGenerator {
                         && !isPackagePrivate(method.getModifiers()))
                         || Modifier.isFinal(method.getModifiers())) && !(isPackagePrivate(method.getModifiers()) && !packagePrivate)).collect(Collectors.toList());
 
+        methodList.removeIf(method -> proxyData.getCustomView().stream().anyMatch(it -> !it.generateMethod(method)));
+
         List<FieldDeclaration> cacheList = new ArrayList<>(methodList.size());
 
         for (int i = 0; i < methodList.size(); i++) {

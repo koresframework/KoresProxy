@@ -61,6 +61,16 @@ public interface Custom {
     }
 
     /**
+     * Returns whether method {@code m} should be generated or not.
+     *
+     * @param m Method to generate.
+     * @return Returns whether method {@code m} should be generated or not.
+     */
+    default boolean generateMethod(Method m) {
+        return true;
+    }
+
+    /**
      * Returns whether specification cache of {@code m} should be generated or not. If {@code
      * false}, the cache instance will be assigned to {@code null}.
      *

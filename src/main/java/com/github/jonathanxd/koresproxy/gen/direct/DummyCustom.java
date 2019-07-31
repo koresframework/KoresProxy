@@ -28,6 +28,7 @@
 package com.github.jonathanxd.koresproxy.gen.direct;
 
 import com.github.jonathanxd.iutils.collection.Collections3;
+import com.github.jonathanxd.iutils.function.Predicates;
 import com.github.jonathanxd.kores.Instructions;
 import com.github.jonathanxd.kores.base.KoresParameter;
 import com.github.jonathanxd.kores.base.MethodDeclaration;
@@ -43,16 +44,19 @@ import org.jetbrains.annotations.NotNull;
 import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Predicate;
 
 /**
  * Generates a dummy implementation, all methods returns either a default value or {@code null}.
  */
 public class DummyCustom implements DirectInvocationCustom {
 
-    private static final DummyCustom INSTANCE = new DummyCustom();
+    private static final DummyCustom INSTANCE = new DummyCustom(Predicates.acceptAll());
     private final DummyCustom.Gen gen = new DummyCustom.Gen();
+    private final Predicate<Method> generatePredicate;
 
-    private DummyCustom() {
+    private DummyCustom(Predicate<Method> generatePredicate) {
+        this.generatePredicate = generatePredicate;
     }
 
     /**
@@ -64,6 +68,16 @@ public class DummyCustom implements DirectInvocationCustom {
         return DummyCustom.INSTANCE;
     }
 
+    /**
+     * Creates a dummy custom which only generates implementation for methods that matches {@code
+     * generatePredicate}.
+     *
+     * @return Dummy custom instance.
+     */
+    public static DummyCustom create(Predicate<Method> generatePredicate) {
+        return new DummyCustom(generatePredicate);
+    }
+
     @Override
     public List<Property> getAdditionalProperties() {
         return Collections.emptyList();
@@ -72,6 +86,11 @@ public class DummyCustom implements DirectInvocationCustom {
     @Override
     public List<Object> getValueForConstructorProperties() {
         return Collections.emptyList();
+    }
+
+    @Override
+    public boolean generateMethod(Method m) {
+        return this.generatePredicate.test(m);
     }
 
     @Override
@@ -131,6 +150,8 @@ public class DummyCustom implements DirectInvocationCustom {
             } else if (target.getReturnType() == Long.TYPE) {
                 return Instructions.fromPart(Factories.returnValue(target.getReturnType(),
                         Literals.LONG(0)));
+            } else if (target.getReturnType() == Void.TYPE) {
+                return Instructions.empty();
             } else {
                 return Instructions.fromPart(Factories.returnValue(target.getReturnType(), Literals.NULL));
             }
