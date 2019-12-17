@@ -27,6 +27,11 @@
  */
 package com.github.jonathanxd.koresproxy.internals;
 
+import com.github.jonathanxd.iutils.collection.Collections3;
+import com.github.jonathanxd.iutils.condition.Conditions;
+import com.github.jonathanxd.iutils.exception.RethrowException;
+import com.github.jonathanxd.iutils.map.WeakValueHashMap;
+import com.github.jonathanxd.iutils.object.Pair;
 import com.github.jonathanxd.kores.Instruction;
 import com.github.jonathanxd.kores.MutableInstructions;
 import com.github.jonathanxd.kores.Types;
@@ -34,11 +39,11 @@ import com.github.jonathanxd.kores.base.Access;
 import com.github.jonathanxd.kores.base.Alias;
 import com.github.jonathanxd.kores.base.ArrayConstructor;
 import com.github.jonathanxd.kores.base.ClassDeclaration;
-import com.github.jonathanxd.kores.base.KoresModifier;
-import com.github.jonathanxd.kores.base.KoresParameter;
 import com.github.jonathanxd.kores.base.ConstructorDeclaration;
 import com.github.jonathanxd.kores.base.FieldAccess;
 import com.github.jonathanxd.kores.base.FieldDeclaration;
+import com.github.jonathanxd.kores.base.KoresModifier;
+import com.github.jonathanxd.kores.base.KoresParameter;
 import com.github.jonathanxd.kores.base.MethodDeclaration;
 import com.github.jonathanxd.kores.base.TypeDeclaration;
 import com.github.jonathanxd.kores.base.TypeSpec;
@@ -55,11 +60,13 @@ import com.github.jonathanxd.kores.factory.InvocationFactory;
 import com.github.jonathanxd.kores.factory.PartFactory;
 import com.github.jonathanxd.kores.factory.VariableFactory;
 import com.github.jonathanxd.kores.literal.Literals;
-import com.github.jonathanxd.kores.type.KoresTypes;
 import com.github.jonathanxd.kores.type.ImplicitKoresType;
+import com.github.jonathanxd.kores.type.KoresTypes;
 import com.github.jonathanxd.kores.util.conversion.ConversionsKt;
+import com.github.jonathanxd.kores.util.conversion.TypeStructureKt;
 import com.github.jonathanxd.koresproxy.Debug;
 import com.github.jonathanxd.koresproxy.InvokeSuper;
+import com.github.jonathanxd.koresproxy.KoresProxy;
 import com.github.jonathanxd.koresproxy.ProxyData;
 import com.github.jonathanxd.koresproxy.gen.Custom;
 import com.github.jonathanxd.koresproxy.gen.CustomGen;
@@ -67,10 +74,6 @@ import com.github.jonathanxd.koresproxy.gen.CustomHandlerGenerator;
 import com.github.jonathanxd.koresproxy.gen.GenEnv;
 import com.github.jonathanxd.koresproxy.handler.InvocationHandler;
 import com.github.jonathanxd.koresproxy.info.MethodInfo;
-import com.github.jonathanxd.iutils.collection.Collections3;
-import com.github.jonathanxd.iutils.exception.RethrowException;
-import com.github.jonathanxd.iutils.map.WeakValueHashMap;
-import com.github.jonathanxd.iutils.object.Pair;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -126,10 +129,19 @@ public class ProxyGenerator {
      */
     public static boolean isProxy(Object o) {
         Objects.requireNonNull(o, "Argument 'o' cannot be null!");
+        Conditions.require(!Objects.equals(o.getClass(), Class.class), "Could not check if a class is a proxy instance. This check must only occur against objects.");
 
         return o.getClass().isAnnotationPresent(Proxy.class);
     }
 
+    /**
+     * Returns true if class {@code cl} is a KoresProxy generated proxy.
+     */
+    public static boolean isProxy(Class<?> cl) {
+        Objects.requireNonNull(cl, "Argument 'cl' cannot be null!");
+
+        return cl.isAnnotationPresent(Proxy.class);
+    }
 
     /**
      * Returns true if class of proxy object {@code o} is cached internally.
@@ -137,8 +149,16 @@ public class ProxyGenerator {
     public static boolean isCachedProxy(Object o) {
         Objects.requireNonNull(o, "Argument 'o' cannot be null!");
 
-
         return ProxyGenerator.CACHE.containsValue(o.getClass());
+    }
+
+    /**
+     * Returns true if class {@code cl} is cached internally.
+     */
+    public static boolean isCachedProxy(Class<?> cl) {
+        Objects.requireNonNull(cl, "Argument 'cl' cannot be null!");
+
+        return ProxyGenerator.CACHE.containsValue(cl);
     }
 
     /**
@@ -343,6 +363,7 @@ public class ProxyGenerator {
         List<ConstructorDeclaration> constructors = new ArrayList<>();
 
         Class<?> superClass = proxyData.getSuperClass();
+        boolean isProxy = KoresProxy.isProxy(superClass);
 
         Set<Constructor<?>> classConstructors =
                 new HashSet<>(Collections3.<Constructor<?>>prepend(
@@ -357,9 +378,32 @@ public class ProxyGenerator {
                     || (isPackagePrivate(constructor.getModifiers()) && packagePrivate)) {
 
                 List<KoresParameter> parameters =
-                        ConversionsKt.getKoresParameters(Arrays.asList(constructor.getParameters()));
+                        Arrays.stream(constructor.getParameters())
+                                .map(it -> TypeStructureKt.toKoresParameter(it, null))
+                                .collect(Collectors.toList());
 
-                final int originalParametersSize = parameters.size();
+                List<KoresParameter> startingParameters = new ArrayList<>();
+                List<KoresParameter> endingParameters = new ArrayList<>();
+
+                if (isProxy) {
+                    for (int i = 0; i < parameters.size(); i++) {
+                        KoresParameter parameter = parameters.get(i);
+                        if (parameter.isAnnotationPresent(ProxyDataParameter.class) && i + 1 < parameters.size()
+                                && parameters.get(i + 1).isAnnotationPresent(ProxyDataParameter.class)) {
+                            if (i > 0) {
+                                startingParameters.addAll(parameters.subList(0, i));
+                            }
+                            if (i + 2 < parameters.size()) {
+                                endingParameters.addAll(parameters.subList(i + 2, parameters.size()));
+                            }
+                            break;
+                        }
+                    }
+
+                    parameters.removeIf(it -> it.isAnnotationPresent(ProxyDataParameter.class));
+                } else {
+                    startingParameters.addAll(parameters);
+                }
 
                 List<VariableRef> additionalProperties = proxyData.getCustomView().stream()
                         .map(Custom::getAdditionalProperties)
@@ -369,10 +413,15 @@ public class ProxyGenerator {
                         .collect(Collectors.toList());
 
                 // InvocationHandler
-                parameters.add(Factories.parameter(IH_TYPE, IH_NAME));
-                parameters.add(Factories.parameter(PD_TYPE, PD_NAME));
+                parameters.add(Factories.parameter(
+                        Collections.singletonList(Factories.runtimeAnnotation(ProxyDataParameter.class)),
+                        IH_TYPE, IH_NAME));
 
-                for (VariableRef variableRef : additionalProperties) {
+                parameters.add(Factories.parameter(
+                        Collections.singletonList(Factories.runtimeAnnotation(ProxyDataParameter.class)),
+                        PD_TYPE, PD_NAME));
+
+                for (VariableRef variableRef : additionalProperties) { // Additional parameters are added to the end too
                     parameters.add(Factories.parameter(variableRef.getType(), Util.getAdditionalPropertyFieldName(variableRef)));
                 }
 
@@ -384,9 +433,24 @@ public class ProxyGenerator {
                         .body(constructorSource)
                         .build();
 
+                // IH parameters and additional parameters are added to the end of constructor.
+
                 if (parameters.size() > (1 + additionalProperties.size())) {
-                    List<Instruction> arguments = // Ignore IH parameter and additional parameters.
-                            ConversionsKt.getAccess(parameters.subList(0, originalParametersSize));
+                    List<Instruction> arguments = new ArrayList<>();
+                    if (!startingParameters.isEmpty()) {
+                        arguments.addAll(ConversionsKt.getAccess(startingParameters));
+                    }
+
+                    if (isProxy) {
+                        arguments.add(Factories.accessVariable(IH_TYPE, IH_NAME));
+                        arguments.add(Factories.accessVariable(PD_TYPE, PD_NAME));
+                    }
+
+                    //arguments.addAll(ConversionsKt.getAccess(parameters.subList(0, originalParametersSize)));
+
+                    if (!endingParameters.isEmpty()) {
+                        arguments.addAll(ConversionsKt.getAccess(endingParameters));
+                    }
 
                     constructorSource.add(InvocationFactory.invokeSuperConstructor(
                             superClass,

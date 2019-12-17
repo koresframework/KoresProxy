@@ -28,6 +28,7 @@
 package test;
 
 import com.github.jonathanxd.koresproxy.KoresProxy;
+import com.github.jonathanxd.koresproxy.gen.DirectInvocationCustom;
 import com.github.jonathanxd.koresproxy.gen.direct.DummyCustom;
 
 import org.junit.Assert;
@@ -59,6 +60,65 @@ public class DummyCustomTest {
         Assert.assertEquals(greet, greet);
         Assert.assertNotEquals(greet, greet2);
     }
+
+    @Test
+    public void testDummyDelegate() {
+        Greeter greet = KoresProxy.newProxyInstance(builder ->
+                builder.classLoader(Greeter.class.getClassLoader())
+                        .interfaces(Greeter.class)
+                        .invocationHandler((instance, methodInfo, args, proxyData) -> null)
+                        .addCustom(DummyCustom.create(m -> Objects.equals(Greeter.class, m.getDeclaringClass())))
+        );
+
+        Greeter greet2 = KoresProxy.newProxyInstance(builder ->
+                builder.classLoader(Greeter.class.getClassLoader())
+                        .superClass(greet.getClass())
+                        .interfaces(Greeter.class)
+                        .invocationHandler((instance, methodInfo, args, proxyData) -> null)
+                        .addCustom(new DirectInvocationCustom.Instance(greet))
+        );
+
+        greet.greet();
+        Assert.assertNotNull(greet.toString());
+        Assert.assertNotEquals(0, greet.hashCode());
+        Assert.assertEquals(greet, greet);
+        Assert.assertNotEquals(greet, greet2);
+    }
+
+    @Test
+    public void testDummyDelegate2() {
+        Greeter greet = KoresProxy.newProxyInstance(builder ->
+                builder.classLoader(Greeter.class.getClassLoader())
+                        .interfaces(Greeter.class)
+                        .invocationHandler((instance, methodInfo, args, proxyData) -> null)
+                        .addCustom(DummyCustom.create(m -> Objects.equals(Greeter.class, m.getDeclaringClass())))
+        );
+
+        Greeter greet2 = KoresProxy.newProxyInstance(builder ->
+                builder.classLoader(Greeter.class.getClassLoader())
+                        .superClass(greet.getClass())
+                        .interfaces(Greeter.class)
+                        .invocationHandler((instance, methodInfo, args, proxyData) -> null)
+                        .addCustom(new DirectInvocationCustom.Instance(greet))
+        );
+
+        Greeter greet3 = KoresProxy.newProxyInstance(new Class[]{greet.getClass()}, new Object[]{greet}, builder ->
+                builder.classLoader(Greeter.class.getClassLoader())
+                        .superClass(greet2.getClass())
+                        .interfaces(Greeter.class)
+                        .invocationHandler((instance, methodInfo, args, proxyData) -> null)
+                        .addCustom(new DirectInvocationCustom.Instance(greet2))
+        );
+
+        greet.greet();
+        Assert.assertNotNull(greet.toString());
+        Assert.assertNotEquals(0, greet.hashCode());
+        Assert.assertEquals(greet, greet);
+        Assert.assertNotEquals(greet, greet2);
+        Assert.assertNotEquals(greet, greet3);
+        Assert.assertNotEquals(greet2, greet3);
+    }
+
 
     public interface Greeter {
         void greet();

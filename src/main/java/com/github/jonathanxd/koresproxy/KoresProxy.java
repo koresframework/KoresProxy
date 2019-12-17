@@ -181,6 +181,16 @@ public class KoresProxy {
     }
 
     /**
+     * Returns true if {@code cl} is a {@link KoresProxy} generated class.
+     *
+     * @param cl Class to check.
+     * @return True if {@code o} is a {@link KoresProxy} generated class.
+     */
+    public static boolean isProxy(Class<?> cl) {
+        return ProxyGenerator.isProxy(cl);
+    }
+
+    /**
      * Returns true if {@code o} is a {@link KoresProxy} instance.
      *
      * @param o Object to check.

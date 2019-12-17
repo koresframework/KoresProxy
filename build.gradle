@@ -1,10 +1,10 @@
 plugins {
-    id 'com.github.hierynomus.license' version '0.11.0'
-    id 'com.github.johnrengelman.shadow' version '1.2.3'
+    id 'com.github.hierynomus.license' version '0.15.0'
+    id "com.github.johnrengelman.shadow" version "5.2.0"
 }
 
 group 'com.github.jonathanxd'
-version '2.5.5-SNAPSHOT'
+version '2.5.8-SNAPSHOT'
 
 // Setup
 
@@ -36,8 +36,8 @@ repositories {
 
 allprojects {
     dependencies {
-        compile 'com.github.JonathanxD.Kores:Kores:4.0.0.48-beta'
-        compile 'com.github.JonathanxD.Kores-BytecodeWriter:Kores-BytecodeWriter:4.0.0.36-beta-bytecode'
+        compile 'com.github.JonathanxD.Kores:Kores:4.0.0.54-beta'
+        compile 'com.github.JonathanxD.Kores-BytecodeWriter:Kores-BytecodeWriter:4.0.0.40-beta-bytecode'
 
         testCompile group: 'junit', name:'junit', version: '4.12'
     }
