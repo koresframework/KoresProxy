@@ -4,7 +4,7 @@ plugins {
 }
 
 group 'com.github.jonathanxd'
-version '2.5.8-SNAPSHOT'
+version '2.6.0-SNAPSHOT'
 
 // Setup
 
@@ -36,8 +36,8 @@ repositories {
 
 allprojects {
     dependencies {
-        compile 'com.github.JonathanxD.Kores:Kores:4.0.0.54-beta'
-        compile 'com.github.JonathanxD.Kores-BytecodeWriter:Kores-BytecodeWriter:4.0.0.40-beta-bytecode'
+        compile 'com.github.JonathanxD.Kores:Kores:4.0.1.base'
+        compile 'com.github.JonathanxD.Kores-BytecodeWriter:Kores-BytecodeWriter:4.0.1.bytecode.1'
 
         testCompile group: 'junit', name:'junit', version: '4.12'
     }
